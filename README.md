@@ -14,9 +14,9 @@ The whole game is **one self-contained HTML file**: no libraries, no build step,
 
 - **Locally:** download `index.html` and double-click it. It works in any modern desktop browser (Chrome, Firefox, Edge).
 - **Online:** if GitHub Pages is enabled for this repo, play at
-  `https://shieldsyncofficial.github.io/signal-noise/`
+  `https://<your-username>.github.io/<repo-name>/`
 
-Best at 1280×720 or larger.
+The whole interface scales to fit whatever window it's in, from a small laptop window to a 4K monitor, so nothing gets cut off. Text size can be adjusted in **Settings**.
 
 ---
 
@@ -52,6 +52,19 @@ Behind the monitors, a city window tracks the shift clock, from sunrise through 
 - **Stress** rises with backlog, mistakes and night shifts.
 - **Reputation** rises with accurate calls and good handoffs.
 
+### Shift cards (run modifiers)
+Three times per shift (around the 3-, 6- and 9-hour marks), you reach a **checkpoint** and pick 1 of 3 randomized cards. Each card lasts for the rest of that career:
+
+| Type | What it does |
+|---|---|
+| 🟢 **Boon** | A pure buff, e.g. *Saved Searches* (faster queries) or *Noise-Cancelling Headphones* (less stress) |
+| 🟠 **Trade-off** | An upside with a cost, e.g. *Cold Brew Drip* (stronger coffee, harder crashes) |
+| 🟣 **Curse** | Makes the run harder, e.g. *Understaffed* or *Tightened SLAs*, but pays Career Points now and **Legacy Points when the run ends** |
+
+Boons get rarer and curses more common as you climb tiers. Press `1`–`3` to pick, or skip the checkpoint. Press `C` (or click the 🃏 chip in the HUD) to review your active cards.
+
+![Shift checkpoint card pick](screenshots/shift-cards.png)
+
 ### Major incidents
 Every 5th shift, a major incident (ransomware outbreak, supply-chain compromise, or zero-day exploitation) opens a **timed incident bridge**. Complete at least 3 of 4 objectives before time runs out.
 
@@ -84,11 +97,24 @@ Every 5th shift, a major incident (ransomware outbreak, supply-chain compromise,
 | `Q` / `R` | Sip coffee / refill mug |
 | `Space` | Pause |
 | `T` | Fast-forward ×3 |
+| `1`–`3` | Pick a card at a shift checkpoint |
+| `C` | View active shift cards |
 | `M` | Toggle sound |
 | `L` | Desk lamp |
 | `Esc` | Menu |
 
 Everything is also playable with the mouse.
+
+---
+
+## 💾 Save files (move between browsers & devices)
+
+Progress autosaves in your browser. To take it somewhere else, use a **save file**:
+
+- **Download:** *⇩ Save File* on the main menu, *Download save file* in the pause menu (`Esc`), or the button on the days-off screen and the run summary. You can do this mid-shift.
+- **Load:** *⇪ Load File* on the main menu or pause menu, **or drag and drop the `.json` file anywhere on the game window**. You'll see a preview (seed, tier, shift, stats) before anything is replaced.
+
+A save file contains your career in progress (including mid-shift state and active cards) plus your permanent unlocks, Legacy Points, achievements and settings. Files carry a checksum, so damaged or edited files are flagged before loading.
 
 ---
 
@@ -104,9 +130,9 @@ Every run uses a seeded RNG. The seed appears on the sticky note on your desk an
 - Sound effects, synthesized with the Web Audio API and **muted by default**
 - Reduced motion
 - CRT scanlines on/off
-- Larger text
+- Text & interface size (Normal / Large / Extra large)
 
-Progress is saved in `localStorage`. If storage is unavailable (e.g., some private-browsing modes), the game still runs without saving.
+Progress is saved in `localStorage` and the game pauses itself when you switch tabs. If storage is unavailable (e.g., some private-browsing modes), the game still runs, and a downloaded save file keeps your progress.
 
 ---
 
@@ -127,10 +153,10 @@ The script is organized into numbered, commented sections:
 5. Alert generators (phishing, password spray, impossible travel, C2 beacon, PowerShell, exfil, privesc, insider, DDoS, scanner noise, false positives)
 6–12. Game state, shift generation, simulation tick, decisions, resources, handoffs, run end
 13. Random desk events
-14. Boss encounters (incident bridge)
+14. Boss encounters (incident bridge) and mid-shift cards
 15. Tutorial
 16. Audio
-17–20. Rendering, screens, input and the main loop
+17–20. Rendering, screens, save files, fit-to-window scaling, input and the main loop
 
 ### Tuning
 To make the game easier or harder, start with these:
@@ -138,6 +164,7 @@ To make the game easier or harder, start with these:
 - `SLA_BASE`: SLA minutes per severity
 - `resources()`: energy drain and stress accumulation
 - `TYPE_W`: the mix of alert types on day vs. night shifts
+- `CARDS`: shift card effects, stack limits and curse payouts
 
 ---
 
