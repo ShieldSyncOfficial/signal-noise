@@ -64,6 +64,10 @@ Responses arrive in the form's **Responses** tab (or a linked Google Sheet). Pla
 6. GitHub Pages redeploys in 1–2 minutes. Every player then sees the new board and the new *last reviewed* time, converted to their local timezone.
 7. Close the approved GitHub issues (optional).
 
+### Sample (bot) entries
+
+The board ships with 10 sample entries named `BOT-…` (ids `bot01`–`bot10`), spread across all four difficulties and tagged **BOT** in the game, so the board isn't empty at launch. To remove them, open **Owner tools**, untick them under *Existing official entries*, then **Build** and publish as usual.
+
 ### A note on cheating
 
 The game runs entirely in the player's browser, so a determined person could fake a score. The codes catch accidents and casual edits, but **your review is the real safeguard**. Use judgement on extreme scores. Every entry includes its **seed**, so you can replay the same career yourself to see whether the numbers are believable.
