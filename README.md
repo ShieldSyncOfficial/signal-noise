@@ -14,7 +14,7 @@ The whole game is **one self-contained HTML file**: no libraries, no build step,
 
 - **Locally:** download `index.html` and double-click it. It works in any modern desktop browser (Chrome, Firefox, Edge).
 - **Online:** if GitHub Pages is enabled for this repo, play at
-  `https://<your-username>.github.io/<repo-name>/`
+  `https://shieldsyncofficial.github.io/signal-noise/`
 
 Best at 1280×720 or larger.
 
