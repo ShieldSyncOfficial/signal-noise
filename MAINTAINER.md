@@ -61,6 +61,7 @@ Responses arrive in the form's **Responses** tab (or a linked Google Sheet). Pla
 5. Click **Build updated board**, then:
    - **⇩ leaderboard.json** → upload it to the repo root, replacing the old one.
    - **⧉ Copy index.html block** → on GitHub, edit `index.html`, select everything from `<!-- LEADERBOARD:BEGIN` through `<!-- LEADERBOARD:END -->`, paste over it, and commit.
+   After you click Build, *your* leaderboard immediately shows the new board and review time, labelled **"Your built preview · not published yet"**. Only your browser sees this preview; it survives reloads and clears itself once GitHub serves the new board. Use **✕ Discard preview** in Owner tools to throw it away.
 6. GitHub Pages redeploys in 1–2 minutes. Every player then sees the new board and the new *last reviewed* time, converted to their local timezone.
 7. Close the approved GitHub issues (optional).
 

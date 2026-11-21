@@ -3191,7 +3191,7 @@ function walkNext() {
    The newest (by reviewedAt) wins. The player's own careers are merged in
    live as UNOFFICIAL until the owner reviews and publishes them.
    ===================================================================== */
-const LB_FORMAT = 'signal-noise-leaderboard', LB_CACHE = 'signalnoise.lb.cache.v1';
+const LB_FORMAT = 'signal-noise-leaderboard', LB_CACHE = 'signalnoise.lb.cache.v1', LB_PREVIEW = 'signalnoise.lb.preview.v1';
 const LB = { official: null, source: 'embedded', fetchedAt: null, loading: false, err: null, tab: 'all', sel: 0, timer: null };
 function lbClean(e) {
   if (!e || typeof e !== 'object') return null;
@@ -3218,6 +3218,8 @@ function lbConsider(b, source, fetchedAt) {
 function lbInit() {
   try { const el = $('#official-leaderboard'); if (el) lbConsider(lbParse(JSON.parse(el.textContent)), 'embedded'); } catch (e) { /* malformed embedded block */ }
   const c = Store.get(LB_CACHE); if (c && c.board) lbConsider(lbParse(c.board), 'cache', c.fetchedAt);
+  // Owner's built-but-unpublished board: shown until the published copy is at least as new.
+  const pv = Store.get(LB_PREVIEW); if (pv && pv.board) lbConsider(lbParse(pv.board), 'preview', pv.at);
   if (!LB.official) LB.official = { format: LB_FORMAT, reviewedAt: null, entries: [] };
 }
 function lbUrl() { return /github\.io$/.test(location.hostname) ? 'leaderboard.json' : LB_CONFIG.jsonUrl; }
@@ -3231,8 +3233,10 @@ async function lbFetch(silent) {
     const b = lbParse(await res.json()); if (!b) throw new Error('bad format');
     const now = new Date().toISOString();
     Store.set(LB_CACHE, { board: b, fetchedAt: now });
-    LB.official = null; lbInit(); lbConsider(b, 'live', now); // live copy wins ties
-    if (lbTime(b) >= lbTime(LB.official)) { LB.official = b; LB.source = 'live'; LB.fetchedAt = now; }
+    const pv = Store.get(LB_PREVIEW);
+    if (pv && pv.board && lbTime(b) >= lbTime(pv.board)) Store.del(LB_PREVIEW); // your published board has caught up
+    LB.official = null; lbInit();
+    if (lbTime(b) >= lbTime(LB.official)) { LB.official = b; LB.source = 'live'; LB.fetchedAt = now; } // live copy wins ties
     if (!silent) toast('Official leaderboard refreshed', 'good');
   } catch (e) { LB.err = 'offline'; }
   finally { clearTimeout(to); LB.loading = false; if (S.overlay === 'leaderboard') renderLeaderboard(); }
@@ -3269,7 +3273,7 @@ function showLeaderboard(back = 'menu', selIdx) {
 function renderLeaderboard() {
   const tab = LB.tab, rows = lbRows(tab), meI = rows.findIndex(r => r.mine), off = LB.official, rev = off.reviewedAt;
   const offR = lbOfficialRank(tab), H = S.meta.history;
-  const srcTxt = LB.loading ? '⟳ Checking GitHub for updates…' : LB.source === 'live' ? `● Live from GitHub · ${off.entries.length} official entries` : LB.source === 'cache' ? `Saved copy from ${fmtDate(LB.fetchedAt, true)} · ${off.entries.length} entries${LB.err ? ' (offline)' : ''}` : `Built-in copy (top ${LB_CONFIG.embeddedTop})${LB.err ? ' · offline, can\'t reach GitHub' : ''}`;
+  const srcTxt = LB.source === 'preview' ? `🔧 Your built preview · ${off.entries.length} entries · <span class="am">not published yet. Commit leaderboard.json and the index.html block so players see it.</span>${LB.loading ? ' · checking GitHub…' : ''}` : LB.loading ? '⟳ Checking GitHub for updates…' : LB.source === 'live' ? `● Live from GitHub · ${off.entries.length} official entries` : LB.source === 'cache' ? `Saved copy from ${fmtDate(LB.fetchedAt, true)} · ${off.entries.length} entries${LB.err ? ' (offline)' : ''}` : `Built-in copy (top ${LB_CONFIG.embeddedTop})${LB.err ? ' · offline, can\'t reach GitHub' : ''}`;
   const show = rows.slice(0, 100); if (meI >= 100) show.push(rows[meI]);
   const rowHTML = (r, i) => { const D = diffOf(r.diff), rank = rows.indexOf(r) + 1; return `<div class="lbrow ${r.mine ? 'me' : ''}"><span class="lbrank">${rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : '#' + rank}</span>
     <div class="lbname"><b>${esc(r.name)}</b>${r.pid && !r.bot ? `<span class="muted mono"> #${esc(r.pid.slice(0, 4))}</span>` : ''} ${r.bot ? '<span class="tag carry" title="Sample score from a bot, not a real player">BOT</span> ' : ''}${r.unofficial ? '<span class="tag nohand">UNOFFICIAL · PENDING REVIEW</span>' : r.mine ? '<span class="tag watch">YOU · OFFICIAL</span>' : ''}
@@ -3338,6 +3342,7 @@ function downloadText(name, text, type = 'text/plain') {
 /* ---- Owner tools: review submissions → publish files to commit on GitHub ---- */
 const OWN = { pending: [], keep: null, built: null };
 function showOwnerTools() {
+  if (!OWN.built) { const pv = Store.get(LB_PREVIEW); if (pv && pv.board && LB.source === 'preview') OWN.built = pv.board; } // restore download buttons after a reload
   if (!OWN.keep) OWN.keep = new Set(LB.official.entries.map(e => e.id));
   const off = LB.official, offIds = new Set(off.entries.map(e => e.id));
   const flags = (p) => { const e = p.e, f = []; if (!p.ok) f.push('corrupt or edited code'); if (e) { if (p.raw && p.raw.score != null && +p.raw.score !== e.score) f.push('score didn\'t match stats (recalculated)'); if (e.acc > 100 || e.prevented > e.decisions + 50) f.push('implausible stats'); if (e.date && Date.parse(e.date) > Date.now() + 864e5) f.push('future date'); if (offIds.has(e.id)) f.push('already on the board'); } return f; };
@@ -3346,14 +3351,14 @@ function showOwnerTools() {
   showOverlay('owner', `<div class="panel" style="width:min(900px,calc(var(--sw) * 96))"><div class="panel-h"><h2>🔧 OWNER TOOLS: PUBLISH LEADERBOARD</h2></div><div class="panel-b">
     <p class="muted">Only the repo owner can publish, because publishing means committing files to GitHub. Anyone can open this screen, but it only creates files on their own computer.</p>
     <ol class="wlist" style="margin:8px 0 12px"><li>Collect submission codes (from GitHub issues, your anonymous form responses, or files people sent you).</li><li>Paste them all below (you can paste whole issue pages or spreadsheet exports; codes are found automatically) or add files.</li><li>Review, tick what to approve, then <b>Build</b>.</li><li>Commit <span class="mono">leaderboard.json</span> to your repo, and replace the block between <span class="mono">LEADERBOARD:BEGIN</span> and <span class="mono">LEADERBOARD:END</span> in <span class="mono">index.html</span>.</li></ol>
-    <div class="card" style="margin-bottom:10px"><h4>CURRENT OFFICIAL BOARD</h4><p>${off.entries.length} entries · reviewed ${off.reviewedAt ? fmtDate(off.reviewedAt, true) : 'never'} · source: ${LB.source}${LB.source !== 'live' ? ' <span class="am">(refresh from GitHub first so you don\'t overwrite newer entries)</span>' : ''}</p><button class="btn sm" data-go="lb-refresh">⟳ Refresh from GitHub</button></div>
+    <div class="card" style="margin-bottom:10px"><h4>CURRENT OFFICIAL BOARD</h4><p>${off.entries.length} entries · reviewed ${off.reviewedAt ? fmtDate(off.reviewedAt, true) : 'never'}  · source: ${LB.source === "preview" ? "your unpublished preview" : LB.source}${LB.source !== "live" && LB.source !== "preview" ? ' <span class="am">(refresh from GitHub first so you don\'t overwrite newer entries)</span>' : ''}</p><button class="btn sm" data-go="lb-refresh">⟳ Refresh from GitHub</button></div>
     <div class="field"><label>PASTE SUBMISSIONS</label><textarea id="ownIn" style="width:100%;height:110px;background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:8px;color:var(--text);font:12px var(--mono);padding:8px" placeholder="Paste text containing SNLB1.… codes"></textarea>
       <div style="display:flex;gap:6px;margin-top:6px"><button class="btn sm primary" data-go="own-parse">Find codes</button><button class="btn sm" data-go="own-files">Add files…</button><input type="file" id="ownFiles" multiple accept=".txt,.json,.csv,.md" class="hidden"><button class="btn sm ghost" data-go="own-clear">Clear</button></div></div>
     <div class="hosec">PENDING (${OWN.pending.length})</div>${pend || '<p class="muted">Nothing pending.</p>'}
     <div class="hosec" style="margin-top:12px">EXISTING OFFICIAL ENTRIES (${off.entries.length})</div><div style="max-height:220px;overflow:auto">${ex || '<p class="muted">None yet.</p>'}</div>
     ${OWN.built ? `<div class="card owned" style="margin-top:12px"><h4>✔ BUILT: ${OWN.built.entries.length} entries, reviewed ${fmtDate(OWN.built.reviewedAt, true)}</h4>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"><button class="btn primary" data-go="own-dljson">⇩ leaderboard.json</button><button class="btn" data-go="own-copyblock">⧉ Copy index.html block (top ${LB_CONFIG.embeddedTop})</button><button class="btn" data-go="own-dlblock">⇩ Download block</button></div>
-      <p class="muted" style="margin-top:6px">This board is now previewed in your Leaderboard screen. Players see it after you commit both files and GitHub Pages redeploys (usually 1–2 minutes).</p></div>` : ''}
+      <p class="muted" style="margin-top:6px">This board is now previewed in your Leaderboard screen (on this browser only). Players see it after you commit both files and GitHub Pages redeploys (usually 1–2 minutes). The preview clears itself once GitHub has the new board.</p><button class="btn sm ghost" data-go="own-discard" style="margin-top:4px">✕ Discard preview</button></div>` : ''}
   </div><div class="panel-f"><button class="btn ghost" data-go="leaderboard">← Back to leaderboard</button><span class="sp"></span><button class="btn primary" data-go="own-build">Build updated board</button></div></div>`);
   $('#ownFiles').addEventListener('change', async ev => { let t = ''; for (const f of ev.target.files) t += '\n' + await f.text(); ownAdd(t); });
 }
@@ -3368,7 +3373,8 @@ function ownBuild() {
   const map = new Map(); keep.concat(add).forEach(e => map.set(e.id, e));
   const entries = Array.from(map.values()).sort((a, b) => b.score - a.score || (a.date < b.date ? -1 : 1));
   OWN.built = { format: LB_FORMAT, version: 1, reviewedAt: new Date().toISOString(), reviewedBy: LB_CONFIG.repo.split('/')[0], total: entries.length, entries };
-  LB.official = lbParse(OWN.built); LB.source = 'preview';
+  Store.set(LB_PREVIEW, { board: OWN.built, at: OWN.built.reviewedAt });
+  LB.official = lbParse(OWN.built); LB.source = 'preview'; LB.fetchedAt = OWN.built.reviewedAt;
   OWN.pending = OWN.pending.filter(p => !(p.approve && p.e)); OWN.keep = new Set(entries.map(e => e.id));
   Sound.good(); showOwnerTools();
 }
@@ -3458,6 +3464,7 @@ function bindInput() {
       case 'own-files': $('#ownFiles').click(); break;
       case 'own-clear': OWN.pending = []; OWN.built = null; showOwnerTools(); break;
       case 'own-build': ownBuild(); break;
+      case 'own-discard': Store.del(LB_PREVIEW); OWN.built = null; OWN.keep = null; LB.official = null; lbInit(); lbFetch(true); toast('Preview discarded', 'warn'); showOwnerTools(); break;
       case 'own-dljson': downloadText('leaderboard.json', JSON.stringify(OWN.built, null, 1), 'application/json'); break;
       case 'own-dlblock': downloadText('leaderboard-block.html', ownBlock(), 'text/html'); break;
       case 'own-copyblock': { const t = ownBlock(); if (navigator.clipboard) navigator.clipboard.writeText(t).then(() => toast('Block copied: paste it over the old one in index.html', 'good'), () => showCode(t)); else showCode(t); break; }
