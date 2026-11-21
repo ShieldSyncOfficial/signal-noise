@@ -503,7 +503,7 @@ body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
     <div class="hud-right">
       <span class="chip tier"><span class="lbl-long">TIER </span><b id="hudTier">T1</b></span>
       <span class="chip"><span class="lbl-long">SHIFT </span>#<b id="hudShiftNo">1</b></span>
-      <span class="chip">CP <b id="hudCP">0</b></span>
+      <button class="chip" id="hudCPBtn" title="Career Points: earned each shift, spent on days off. Click for details.">CP <b id="hudCP">0</b></button>
       <button class="chip" id="hudCards" title="Active shift cards (C)">🃏 <b id="hudCardN">0</b></button>
       <button class="btn sm ghost" id="btnSound" title="Toggle sound (M)">🔇</button>
       <button class="btn sm" id="btnMenu" title="Menu (Esc)">MENU</button>
@@ -692,7 +692,7 @@ function defaultMeta() {
   return {
     lp: 0, lpTotal: 0, unlocks: {}, ach: {}, runs: 0, tutorialDone: false,
     best: { shifts: 0, tier: 0, accuracy: 0 },
-    settings: { speed: 1.5, sound: false, reduced: false, scan: true, text: 'large' },
+    settings: { speed: 1.5, sound: false, reduced: false, scan: true, text: 'normal' },
   };
 }
 function loadMeta() {
@@ -704,7 +704,7 @@ function loadMeta() {
 function normalizeMeta(m) {
   const d = defaultMeta();
   const out = Object.assign(d, m, { settings: Object.assign(d.settings, m.settings || {}), best: Object.assign(d.best, m.best || {}) });
-  if (!TEXT_SCALES[out.settings.text]) out.settings.text = out.settings.large ? 'xl' : 'large';
+  if (!TEXT_SCALES[out.settings.text]) out.settings.text = out.settings.large ? 'large' : 'normal';
   delete out.settings.large;
   out.unlocks = out.unlocks || {}; out.ach = out.ach || {};
   return out;
@@ -2457,7 +2457,7 @@ function showSettings(back = 'menu') {
     <label class="toggle"><input type="checkbox" id="setSound" ${st.sound ? 'checked' : ''}> Sound effects (Web Audio)</label>
     <label class="toggle"><input type="checkbox" id="setReduced" ${st.reduced ? 'checked' : ''}> Reduced motion</label>
     <label class="toggle"><input type="checkbox" id="setScan" ${st.scan ? 'checked' : ''}> CRT scanlines</label>
-    <div class="field"><label>TEXT & INTERFACE SIZE</label><select id="setText">${[['normal', 'Normal'], ['large', 'Large (default)'], ['xl', 'Extra large']].map(([v, l]) => `<option value="${v}" ${st.text === v ? 'selected' : ''}>${l}</option>`).join('')}</select><span class="muted" style="font-size:12.5px">The whole interface scales to fit your window. On small windows, larger sizes are capped so nothing gets cut off.</span></div>
+    <div class="field"><label>TEXT & INTERFACE SIZE</label><select id="setText">${[['normal', 'Normal (default)'], ['large', 'Large'], ['xl', 'Extra large']].map(([v, l]) => `<option value="${v}" ${st.text === v ? 'selected' : ''}>${l}</option>`).join('')}</select><span class="muted" style="font-size:12.5px">The whole interface scales to fit your window. On small windows, larger sizes are capped so nothing gets cut off.</span></div>
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><button class="btn danger sm" data-go="reset">Reset all progress…</button></div>
   </div><div class="panel-f"><button class="btn primary" data-go="${back}" data-primary="1">Done</button></div></div>`);
   const apply = () => { st.speed = +$('#setSpeed').value; st.sound = $('#setSound').checked; st.reduced = $('#setReduced').checked; st.scan = $('#setScan').checked; st.text = $('#setText').value; applySettings(); saveMeta(); };
@@ -2478,6 +2478,7 @@ function showHowTo(back = 'menu') {
     <h3>SHIFTS & HANDOFFS</h3><ul><li>DAY 06:00–18:00 and NIGHT 18:00–06:00, rotating with days off.</li><li>At 05:45/17:45 you read the outgoing analyst's handoff. Sloppy notes leave things out, and asking a clarifying question can surface them.</li>
     <li>At the end of your shift you write the handoff: include open tickets, real IOCs and important system notes, and skip the noise. Omissions come back as "you didn't tell us about this".</li><li>Nights: fewer people, more automated attacks, faster fatigue. Coffee hits harder and crashes harder.</li></ul>
     <h3>RESOURCES</h3><ul><li><b>Energy</b> drains over time. When it's low, queries take 50% longer. Coffee (<kbd>Q</kbd>, refill <kbd>R</kbd>) and breaks restore it.</li><li><b>Caffeine</b> gives energy now and a crash later, and high caffeine raises stress.</li><li><b>Stress</b> rises with backlog, mistakes and night work. It falls with rest and days off.</li><li><b>Reputation</b> rises with accurate calls and good handoffs, and falls with SLA breaches and mistakes.</li></ul>
+    <h3>POINTS</h3><ul><li><b>CP — Career Points</b> (top bar) belong to the current career. You earn them by catching real threats, handing off well, finishing shifts, containing major incidents and taking curse cards. Spend them on days off for rest, training and the certifications you need for promotion. Higher tiers earn more CP.</li><li><b>LP — Legacy Points</b> are earned when a run ends and are kept forever. Spend them in <b>Unlocks</b> on permanent perks and tools.</li></ul>
     <h3>MAJOR INCIDENTS</h3><p>Every 5th shift a major incident opens a timed bridge on Monitor 3. Solve at least 3 of 4 objectives before time runs out.</p>
     <h3>DAYS OFF & META</h3><p>On days off, spend Career Points (CP) on rest, training and certifications. Certifications plus reputation unlock promotions. When a run ends you earn Legacy Points for permanent perks and tools.</p>
     <h3>ON A PHONE OR TABLET</h3><p>Use the tab bar at the bottom to switch between <b>Queue</b>, <b>Case</b> (the investigation workspace) and <b>Comms</b>. Badges show open alerts and unread messages. Tapping an alert opens it in Case. The ☕ button drinks coffee, ❚❚ pauses, 🃏 shows your cards, and MENU opens saves and settings. Landscape gives more room. For full screen, use "Add to Home Screen" or the Fullscreen button where your browser supports it.</p>
@@ -2567,7 +2568,7 @@ function showHome() {
   let promo = '';
   if (pr) { const p = pr.p; promo = `<div class="card ${pr.ok ? 'owned' : ''}" style="margin-bottom:12px"><h4>⬆ PROMOTION TO ${TIERS[r.tier + 1].toUpperCase()}</h4><p>Shifts ${r.shiftCount}/${p.shifts} ${r.shiftCount >= p.shifts ? '✔' : '✖'} · Reputation ${Math.round(r.rep)}/${p.rep} ${r.rep >= p.rep ? '✔' : '✖'} · ${CERTS.find(c => c.id === p.cert).name} ${r.certs[p.cert] ? '✔' : '✖'}</p><p>Higher tiers earn more CP per correct call, and alerts get harder.</p><div class="row"><span class="sp"></span><button class="btn ${pr.ok ? 'primary' : ''}" data-go="promote" ${pr.ok ? '' : 'disabled'}>ACCEPT PROMOTION</button></div></div>`; }
   else promo = `<div class="card owned" style="margin-bottom:12px"><h4>👑 SOC LEAD</h4><p>You made it to the top. Keep going for glory, or retire a legend (+25 LP).</p><div class="row"><span class="sp"></span><button class="btn good" data-go="retire">RETIRE ON TOP</button></div></div>`;
-  showOverlay('home', `<div class="panel" style="width:min(980px,calc(var(--sw) * 96))"><div class="panel-h"><h2>🏠 HOME — ${h.off} DAY${h.off > 1 ? 'S' : ''} OFF</h2><span class="sp"></span><span class="chip">CP <b>${r.cp}</b></span><span class="chip">SLOTS <b>${left}/${h.slots}</b></span><span class="chip">STRESS <b>${Math.round(r.stress)}</b></span><span class="chip">REP <b>${Math.round(r.rep)}</b></span></div>
+  showOverlay('home', `<div class="panel" style="width:min(980px,calc(var(--sw) * 96))"><div class="panel-h"><h2>🏠 HOME — ${h.off} DAY${h.off > 1 ? 'S' : ''} OFF</h2><span class="sp"></span><span class="chip" title="Career Points: spend them on activities and certifications below">CP <b>${r.cp}</b></span><span class="chip" title="Each day off gives 2 activity slots">SLOTS <b>${left}/${h.slots}</b></span><span class="chip">STRESS <b>${Math.round(r.stress)}</b></span><span class="chip">REP <b>${Math.round(r.rep)}</b></span></div>
     <div class="panel-b"><div class="sched" style="margin-bottom:12px">${sched}</div>${promo}
     <div class="hosec">REST & TRAINING</div><div class="grid3">${act}</div>
     <div class="hosec" style="margin-top:14px">CERTIFICATIONS</div><div class="grid2">${certs}</div></div>
@@ -2719,6 +2720,16 @@ function applyPane() {
   applyTutHL();
 }
 function measureHud() { const h = $('#hud'); if (h) document.documentElement.style.setProperty('--hud-h', h.offsetHeight + 'px'); }
+/** Explain Career Points (opened by clicking the CP chip in the HUD). */
+function showCPInfo() {
+  if (S.modal) return;
+  const r = S.run, wasPaused = S.paused; S.paused = true;
+  const s = sh();
+  modal({ title: 'CAREER POINTS (CP)', ico: '💼', body: `<p>${r ? `You have <b class="cy">${r.cp} CP</b>${s && s.phase === 'live' ? ` (+${r.cp - s.cpStart} this shift)` : ''}.` : ''} Career Points belong to <b>this career only</b> and are lost when the run ends.</p>
+    <p><b>Earned by:</b></p><ul style="margin-left:18px"><li>Catching real threats (containment is worth more than escalation)</li><li>Finishing a shift, plus a bonus for every 4 correct calls</li><li>Your handoff grade (A = +3)</li><li>Containing a major incident (+3 to +6)</li><li>Taking curse cards at shift checkpoints</li></ul>
+    <p style="margin-top:8px"><b>Spent on your days off</b> on rest, training and certifications. You need certifications for promotion, and higher tiers earn more CP per catch.</p>
+    <p class="muted">Not to be confused with Legacy Points (LP), which you earn when a run ends and keep forever for permanent unlocks.</p>`, buttons: [{ label: 'Got it', cls: 'primary', fn() { S.paused = wasPaused; } }] });
+}
 function toggleFullscreen() {
   try {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -2827,6 +2838,7 @@ function bindInput() {
   $('#btnFF').addEventListener('click', () => { if (isLive()) { S.ff = !S.ff; renderHUD(); } });
   $('#btnSound').addEventListener('click', toggleSound);
   $('#hudCards').addEventListener('click', showCardsModal);
+  $('#hudCPBtn').addEventListener('click', showCPInfo);
   $('#mtabs').addEventListener('click', e => { const b = e.target.closest('[data-mtab]'); if (b) { setPane(b.dataset.mtab); Sound.click(); dirty(); } });
   $('#mCoffee').addEventListener('click', () => { if (S.run && S.run.mug <= 0) refill(); else sip(); });
   if (window.ResizeObserver) new ResizeObserver(measureHud).observe($('#hud'));
