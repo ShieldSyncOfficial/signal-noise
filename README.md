@@ -14,7 +14,7 @@ The whole game is **one self-contained HTML file**: no libraries and no build st
 
 - **Locally:** download `index.html` and double-click it. It works in any modern desktop browser (Chrome, Firefox, Edge).
 - **Online:** if GitHub Pages is enabled for this repo, play at
-  `https://shieldsyncofficial.github.io/signal-noise//`
+  `https://shieldsyncofficial.github.io/signal-noise/`
 
 **First launch:** you'll pick your analyst **callsign**, then go through a short, required **walkthrough** (about 5 minutes) that explains everything in plain language, with hands-on practice, before your first career. You can replay it any time from **🎓 Tutorial** on the main menu. **? How to Play** is the quick reference.
 
