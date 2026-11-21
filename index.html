@@ -309,6 +309,7 @@ body.no-scan .screen::after{display:none}
 .title-screen .sub{margin-top:10px;font:600 14px var(--mono);letter-spacing:.3em;color:var(--muted)}
 .menu{display:flex;flex-direction:column;gap:9px;width:300px;margin:28px auto 8px}
 .menu .btn{justify-content:center;padding:11px}
+.menu>div>.btn{min-width:0;flex:1 1 0;white-space:normal;padding-left:8px;padding-right:8px}
 .foot-note{font:500 12px var(--mono);color:var(--dim);margin-top:16px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -318,7 +319,7 @@ body.no-scan .screen::after{display:none}
 .card .row{display:flex;align-items:center;gap:8px;margin-top:8px}
 .card .row .sp{flex:1}
 .card.owned{border-color:rgba(67,245,155,.45);background:rgba(67,245,155,.05)}
-.card.locked{opacity:.55}
+.card.dim{opacity:.55}
 .bigstat{font:800 30px var(--mono);color:#fff}
 .bigstat small{display:block;font:600 11.5px var(--mono);letter-spacing:.14em;color:var(--muted)}
 .cause{font:900 34.5px var(--mono);letter-spacing:.1em;text-align:center}
@@ -617,7 +618,7 @@ body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 <div id="overlay" class="hidden"></div>
 <div id="modalRoot"></div>
 <div id="toasts" aria-live="polite"></div>
-<div id="dropHint" class="hidden"><div>⇪ DROP SAVE FILE TO LOAD</div></div>
+<div id="dropHint" class="hidden"><div>⇪ DROP PROFILE FILE TO LOAD</div></div>
 <input type="file" id="fileIn" accept=".json,application/json" class="hidden">
 </div>
 
@@ -691,6 +692,9 @@ const Store = {
 function defaultMeta() {
   return {
     lp: 0, lpTotal: 0, unlocks: {}, ach: {}, runs: 0, tutorialDone: false,
+    profile: { name: 'Analyst', created: new Date().toISOString() },
+    life: { runs: 0, shifts: 0, decisions: 0, correct: 0, prevented: 0, sla: 0, bosses: 0, bossWon: 0, nights: 0, cards: 0, endings: {} },
+    history: [],
     best: { shifts: 0, tier: 0, accuracy: 0 },
     settings: { speed: 1.5, sound: false, reduced: false, scan: true, text: 'normal' },
   };
@@ -707,6 +711,9 @@ function normalizeMeta(m) {
   if (!TEXT_SCALES[out.settings.text]) out.settings.text = out.settings.large ? 'large' : 'normal';
   delete out.settings.large;
   out.unlocks = out.unlocks || {}; out.ach = out.ach || {};
+  out.profile = Object.assign(d.profile, m.profile || {});
+  out.life = Object.assign(d.life, m.life || {}); out.life.endings = Object.assign({}, (m.life && m.life.endings) || {});
+  out.history = Array.isArray(m.history) ? m.history.slice(0, 100) : [];
   return out;
 }
 
@@ -766,13 +773,50 @@ const UNLOCKS = [
   { id: 'start2', kind: 'Start', name: 'Start as Tier 2', cost: 60, need: 't2', desc: 'Begin runs as a Tier 2 Analyst (harder alerts, more CP). Requires reaching Tier 2 once.' },
   { id: 'start3', kind: 'Start', name: 'Start as Tier 3', cost: 120, need: 't3', desc: 'Begin runs as a Tier 3 Threat Hunter. Requires reaching Tier 3 once.' },
 ];
+/** Achievements. cat groups them on the Profile screen; prog (optional) shows lifetime progress. */
 const ACH = {
-  first: { name: 'First Shift Survived', lp: 3 }, night: { name: 'Night Owl — 3 night shifts in a run', lp: 5 },
-  bridge: { name: 'Bridge Commander — win a major incident', lp: 10 }, sharp: { name: 'Sharp Eye — 90% accuracy over 25+ calls', lp: 8 },
-  t2: { name: 'Promoted to Tier 2', lp: 5 }, t3: { name: 'Promoted to Tier 3', lp: 8 }, lead: { name: 'Made Shift Lead', lp: 10 },
-  soclead: { name: 'SOC Lead', lp: 20 }, handoff: { name: 'Golden Handoff — an A grade', lp: 3 }, prevent: { name: 'Kill-Chain Breaker — stop 3 incidents', lp: 6 },
-  ten: { name: 'Ten Shifts Deep', lp: 6 },
+  // Career milestones
+  first: { cat: 'Career', name: 'First Shift Survived', desc: 'Clock out of your first shift.', lp: 3 },
+  ten: { cat: 'Career', name: 'Ten Shifts Deep', desc: 'Survive 10 shifts in one career.', lp: 6 },
+  twenty: { cat: 'Career', name: 'Twenty Shifts Deep', desc: 'Survive 20 shifts in one career.', lp: 10 },
+  marathon: { cat: 'Career', name: 'Lifer', desc: 'Survive 30 shifts in one career.', lp: 15 },
+  night: { cat: 'Career', name: 'Night Owl', desc: 'Work 3 night shifts in one career.', lp: 5 },
+  night10: { cat: 'Career', name: 'Creature of the Night', desc: 'Work 10 night shifts in one career.', lp: 8 },
+  t2: { cat: 'Career', name: 'Promoted to Tier 2', desc: 'Earn your first promotion.', lp: 5 },
+  t3: { cat: 'Career', name: 'Threat Hunter Badge', desc: 'Reach Tier 3.', lp: 8 },
+  lead: { cat: 'Career', name: 'Made Shift Lead', desc: 'Reach Shift Lead.', lp: 10 },
+  soclead: { cat: 'Career', name: 'SOC Lead', desc: 'Reach the top of the ladder.', lp: 20 },
+  retire: { cat: 'Career', name: 'Retired a Legend', desc: 'Retire on your own terms as SOC Lead.', lp: 15 },
+  certall: { cat: 'Career', name: 'Alphabet Soup', desc: 'Earn all four certifications in one career.', lp: 8 },
+  // Skill
+  sharp: { cat: 'Skill', name: 'Sharp Eye', desc: '90% accuracy over 25+ calls in one career.', lp: 8 },
+  flawless: { cat: 'Skill', name: 'Flawless Shift', desc: 'Finish a shift with 8+ calls, all correct, and no SLA breaches.', lp: 8 },
+  handoff: { cat: 'Skill', name: 'Golden Handoff', desc: 'Earn an A-grade handoff.', lp: 3 },
+  aplus3: { cat: 'Skill', name: 'Handoff Hat-Trick', desc: 'Three A-grade handoffs in a row.', lp: 6 },
+  inboxzero: { cat: 'Skill', name: 'Inbox Zero', desc: 'Clock out with an empty queue after resolving 12+ alerts.', lp: 6 },
+  zen: { cat: 'Skill', name: 'Zen Master', desc: 'Clock out of a shift with stress under 20.', lp: 4 },
+  decaf: { cat: 'Skill', name: 'Running on Fumes', desc: 'Finish a shift with 5+ calls without drinking any coffee.', lp: 4 },
+  containment: { cat: 'Skill', name: 'Surgical', desc: 'Make 10 correct containments in one career.', lp: 6 },
+  outage: { cat: 'Skill', name: 'Raw Log Whisperer', desc: 'Make 3 correct calls during a SIEM outage.', lp: 5 },
+  phone: { cat: 'Skill', name: 'Good Listener', desc: 'Take a worried caller seriously and open a ticket.', lp: 2 },
+  // Incidents
+  prevent: { cat: 'Incidents', name: 'Kill-Chain Breaker', desc: 'Stop 3 incidents in one career.', lp: 6 },
+  chain10: { cat: 'Incidents', name: 'Apex Hunter', desc: 'Stop 10 incidents in one career.', lp: 10 },
+  bridge: { cat: 'Incidents', name: 'Bridge Commander', desc: 'Contain a major incident.', lp: 10 },
+  boss3: { cat: 'Incidents', name: 'Incident Commander', desc: 'Contain 3 major incidents in one career.', lp: 12 },
+  cleanbridge: { cat: 'Incidents', name: 'Clean Bridge', desc: 'Contain a major incident without a single wrong answer.', lp: 8 },
+  // Cards
+  cursed3: { cat: 'Cards', name: 'Glutton for Punishment', desc: 'Hold 3 or more curse cards at once.', lp: 5 },
+  deck10: { cat: 'Cards', name: 'Card Shark', desc: 'Hold 10 or more cards in one career.', lp: 5 },
+  // Lifetime (across all careers)
+  veteran: { cat: 'Lifetime', name: 'Veteran', desc: 'Survive 50 shifts across all careers.', lp: 10, prog: m => [m.life.shifts, 50] },
+  alerts500: { cat: 'Lifetime', name: 'Seen It All', desc: 'Handle 500 alerts across all careers.', lp: 10, prog: m => [m.life.decisions, 500] },
+  runs10: { cat: 'Lifetime', name: 'Career Changer', desc: 'Finish 10 careers.', lp: 8, prog: m => [m.life.runs, 10] },
+  allendings: { cat: 'Lifetime', name: 'Been There, Done That', desc: 'Experience burnout, termination and a catastrophic breach.', lp: 6, prog: m => [['burnout', 'terminated', 'breach'].filter(k => m.life.endings[k]).length, 3] },
+  allunlocks: { cat: 'Lifetime', name: 'Fully Kitted', desc: 'Own every permanent unlock.', lp: 10, prog: m => [UNLOCKS.filter(u => m.unlocks[u.id]).length, UNLOCKS.length] },
 };
+const ACH_CATS = ['Career', 'Skill', 'Incidents', 'Cards', 'Lifetime'];
+const ENDINGS = { burnout: ['🔥', 'Burnout'], terminated: ['📉', 'Terminated'], breach: ['💥', 'Catastrophic breach'], retired: ['👑', 'Retired a legend'], resigned: ['🚪', 'Resigned'] };
 const ACTION_LABEL = { fp: 'Closed as False Positive', btp: 'Closed as Benign True Positive', esc: 'Escalated to Tier 2/IR', ip: 'Contained: blocked IP', host: 'Contained: isolated host', account: 'Contained: disabled account' };
 const CONTAIN_LABEL = { ip: 'Block IP', host: 'Isolate Host', account: 'Disable Account' };
 
@@ -1580,6 +1624,8 @@ function decide(a, act) {
   a.status = 'closed'; a.action = act; a.decidedAt = s.t;
   const o = judge(a, act); a.outcome = o.res;
   r.stats.decisions++; s.dec++; if (o.ok) { r.stats.correct++; s.ok++; }
+  if (o.res === 'great') { r.stats.contains = (r.stats.contains || 0) + 1; if (r.stats.contains >= 10) grantAch('containment'); }
+  if (o.ok && s.outage && s.outage.active) { s.outageOk = (s.outageOk || 0) + 1; if (s.outageOk >= 3) grantAch('outage'); }
   if (o.res === 'overesc') r.stats.overEsc++;
   addStress(o.st > 0 ? 0 : o.st);
   s.tickets.unshift({ id: a.id, title: a.title, sev: a.sev, action: act, at: s.t, res: 'pend', note: '' });
@@ -1641,7 +1687,7 @@ function sip() {
   if (!isLive()) return;
   const r = S.run, s = r.shift, night = s.type === 'NIGHT';
   if (r.mug <= 0) { refill(); return; }
-  r.mug = Math.max(0, r.mug - 25);
+  r.mug = Math.max(0, r.mug - 25); s.sips = (s.sips || 0) + 1;
   const bar = (hasU('barista') ? 1.4 : 1) * mods().coffee, nm = night ? 1.4 : 1;
   r.energy = clamp(r.energy + 13 * bar * nm, 0, 100);
   r.caf = clamp(r.caf + 18, 0, 100);
@@ -1739,9 +1785,19 @@ function finalizeShift(sel) {
   r.shiftCount++;
   if (s.type === 'NIGHT') r.consecNights++; else r.consecNights = 0;
   grantAch('first');
+  const g = r.stats.grades, resolved = s.alerts.filter(a => a.status === 'closed').length;
   if (r.stats.nights >= 3) grantAch('night');
+  if (r.stats.nights >= 10) grantAch('night10');
   if (r.shiftCount >= 10) grantAch('ten');
+  if (r.shiftCount >= 20) grantAch('twenty');
+  if (r.shiftCount >= 30) grantAch('marathon');
   if (r.stats.prevented >= 3) grantAch('prevent');
+  if (r.stats.prevented >= 10) grantAch('chain10');
+  if (s.dec >= 8 && s.ok === s.dec && s.sla === 0) grantAch('flawless');
+  if (g.length >= 3 && g.slice(-3).every(x => x === 'A')) grantAch('aplus3');
+  if (!openAlerts().length && resolved >= 12) grantAch('inboxzero');
+  if (r.stress < 20) grantAch('zen');
+  if (!s.sips && s.dec >= 5) grantAch('decaf');
   if (r.stats.decisions >= 25 && r.stats.correct / r.stats.decisions >= .9) grantAch('sharp');
   if (breach) { endRun('breach', breach); return; }
   if (r.ended) return;
@@ -1784,11 +1840,17 @@ function promote() {
   S.meta.best.tier = Math.max(S.meta.best.tier, r.tier);
   save(); showHome();
 }
-function grantAch(id) {
+/** Unlock an achievement. During a run its LP is paid at run end; outside a run it's paid immediately. */
+function grantAch(id, inRun) {
   if (!id || !ACH[id]) return;
-  const r = S.run; if (r.achRun[id]) return;
-  r.achRun[id] = !S.meta.ach[id] ? 'new' : 'again';
-  if (!S.meta.ach[id]) { S.meta.ach[id] = true; toast('🏆 ' + ACH[id].name, 'good'); }
+  const r = S.run, live = !!(r && (inRun || !r.ended));
+  if (live && r.achRun[id]) return;
+  const isNew = !S.meta.ach[id];
+  if (live) r.achRun[id] = isNew ? 'new' : 'again';
+  if (isNew) {
+    S.meta.ach[id] = new Date().toISOString(); toast('🏆 ' + ACH[id].name, 'good'); Sound.good();
+    if (!live) { S.meta.lp += ACH[id].lp; S.meta.lpTotal += ACH[id].lp; saveMeta(); }
+  }
 }
 
 /* ---------------------------------------------------------------------
@@ -1798,6 +1860,12 @@ function endRun(cause, detail) {
   const r = S.run; if (!r || r.ended) return;
   r.ended = true; S.paused = false; S.ff = false;
   const st = r.stats, acc = st.decisions ? st.correct / st.decisions : 0;
+  // Lifetime totals + lifetime achievements (these count toward this run's LP)
+  const Lf = S.meta.life;
+  Lf.runs++; Lf.shifts += r.shiftCount; Lf.decisions += st.decisions; Lf.correct += st.correct; Lf.prevented += st.prevented; Lf.sla += st.sla;
+  Lf.bosses += st.bosses; Lf.bossWon += st.bossWon; Lf.nights += st.nights; Lf.cards += (r.cardLog || []).length; Lf.endings[cause] = (Lf.endings[cause] || 0) + 1;
+  if (cause === 'retired') grantAch('retire', true);
+  Object.keys(ACH).forEach(k => { const pg = ACH[k].prog; if (pg && k !== 'allunlocks') { const [c, n] = pg(S.meta); if (c >= n) grantAch(k, true); } });
   let lp = r.shiftCount * 2 + Math.min(st.prevented, 20) + (st.decisions >= 10 ? Math.round(acc * 8) : 0) + r.tier * 4 + st.bossWon * 5;
   const newAch = Object.keys(r.achRun).filter(k => r.achRun[k] === 'new');
   newAch.forEach(k => lp += ACH[k].lp);
@@ -1807,6 +1875,14 @@ function endRun(cause, detail) {
   S.meta.lp += lp; S.meta.lpTotal += lp;
   S.meta.best.shifts = Math.max(S.meta.best.shifts, r.shiftCount);
   S.meta.best.accuracy = Math.max(S.meta.best.accuracy, st.decisions >= 10 ? acc : 0);
+  // Run history entry (kept in the profile, newest first, capped at 100)
+  S.meta.history.unshift({
+    date: new Date().toISOString(), seed: r.seed, cause, detail: detail || '', shifts: r.shiftCount, tier: r.tier, startTier: r.startTier,
+    decisions: st.decisions, correct: st.correct, acc: Math.round(acc * 100), prevented: st.prevented, sla: st.sla, missed: st.missed, overEsc: st.overEsc,
+    bosses: st.bosses, bossWon: st.bossWon, nights: st.nights, grades: st.grades.slice(), cards: (r.cards || []).map(c => ({ id: c.id, n: c.n })),
+    certs: Object.keys(r.certs || {}), ach: Object.keys(r.achRun).filter(k => r.achRun[k] === 'new'), lp, rep: Math.round(r.rep), stress: Math.round(r.stress), cp: r.cp,
+  });
+  if (S.meta.history.length > 100) S.meta.history.length = 100;
   if (r.tutorial >= 0) { S.meta.tutorialDone = true; }
   Store.del(SAVE_RUN); saveMeta();
   closeAllModals();
@@ -1858,7 +1934,7 @@ const EVENTS = {
     if (sec) {
       modal({
         title: 'DESK PHONE', ico: '📞', onClose: done, body: `<p><b>${u.name}</b> (${u.deptName}): <i>"Hi, um… I clicked a link in an email about my payroll and typed my password. Then the page just went blank. Is that bad?"</i></p>`, buttons: [
-          { label: 'Open a ticket and investigate', cls: 'primary', fn() { const a = makeAlert(R, 'phishing', 'TP', s.t, diff(), { forceClick: true }); a.ent.user = u.un; a.desc = 'Phoned in by ' + u.name + ' — clicked and entered password'; a.tags.push('phone'); a.sev = 2; a.sla = slaFor(2, diff()); a.ev.user = userLines(u, a.ev.user.slice(4)); spawnAlert(a); addRep(1); chat('sys', `Ticket ${a.id} opened from phone call.`); } },
+          { label: 'Open a ticket and investigate', cls: 'primary', fn() { const a = makeAlert(R, 'phishing', 'TP', s.t, diff(), { forceClick: true }); a.ent.user = u.un; a.desc = 'Phoned in by ' + u.name + ' — clicked and entered password'; a.tags.push('phone'); a.sev = 2; a.sla = slaFor(2, diff()); a.ev.user = userLines(u, a.ev.user.slice(4)); spawnAlert(a); addRep(1); grantAch('phone'); chat('sys', `Ticket ${a.id} opened from phone call.`); } },
           { label: '"Just change your password, you\'ll be fine."', cls: 'ghost', fn() { const a = makeAlert(R, 'travel', 'TP', s.t + R.int(90, 200), diff(), { forceUser: u.un }); a.spawnAt = a.created; a.sev = 2; a.sla = slaFor(2, diff()); s.spawn.push(a); s.spawn.sort((x, y) => x.spawnAt - y.spawnAt); } },
         ]
       });
@@ -2002,6 +2078,8 @@ function endBridge() {
   const r = S.run, s = r.shift, b = s.bridge; if (!b || !b.active) return;
   b.active = false;
   const n = b.objs.filter(o => o.done).length;
+  if (n >= 3 && b.objs.every(o => !o.tries)) grantAch('cleanbridge');
+  if (n >= 3 && r.stats.bossWon + 1 >= 3) grantAch('boss3');
   if (n >= 4) { b.won = true; addRep(8); addCP(6); r.stats.prevented++; r.stats.bossWon++; grantAch('bridge'); chat('bridge', 'Incident CONTAINED. Outstanding work — the CISO wants to buy you lunch. (Rep +8, CP +6)'); Sound.good(); }
   else if (n >= 3) { b.won = true; addRep(3); addCP(3); addStress(5); r.stats.bossWon++; r.stats.prevented++; grantAch('bridge'); chat('bridge', 'Incident contained, with some collateral damage. (Rep +3, CP +3)'); }
   else { endRun('breach', `The ${b.title.toLowerCase()} bridge ran out of time with only ${n}/4 objectives complete. The incident became a headline.`); return; }
@@ -2052,6 +2130,8 @@ function takeCard(id) {
   if (d.instant) d.instant(r);
   else { const c = r.cards.find(x => x.id === id); if (c) c.n++; else r.cards.push({ id, n: 1 }); }
   if (d.t === 'curse') r.cp += d.cp;
+  if (r.cards.filter(c => CARD_BY[c.id] && CARD_BY[c.id].t === 'curse').reduce((t, c) => t + c.n, 0) >= 3) grantAch('cursed3');
+  if (r.cards.reduce((t, c) => t + c.n, 0) >= 10) grantAch('deck10');
   r.cardLog.push({ id, shift: r.shiftCount + 1 });
   S._modsKey = null;
   chat('sys', `${d.ico} Card taken: ${d.name} — ${d.desc}`);
@@ -2380,7 +2460,7 @@ function renderDesk() {
   $('#mug').classList.toggle('empty', lvl <= 0);
   $('#mugLbl').textContent = lvl <= 0 ? (r && sh() && sh().coffeeBroken && !hasU('barista') ? 'MACHINE BROKEN' : 'REFILL (R)') : 'SIP (Q)';
   $('#headset').classList.toggle('on', S.meta.settings.sound);
-  $('#badgeName').textContent = r ? 'ANALYST' : 'VISITOR';
+  $('#badgeName').textContent = profileName().toUpperCase().slice(0, 12);
   $('#badgeTier').textContent = r ? TIER_BADGE[r.tier] : '—';
   $('#stickySeed').textContent = r ? r.seed : '—';
 }
@@ -2424,13 +2504,12 @@ function showStart() {
     <div class="menu">
       <button class="btn primary lg" data-go="new" data-primary="1">▶ NEW RUN</button>
       <button class="btn lg" data-go="continue" ${has ? '' : 'disabled'}>⟲ CONTINUE</button>
-      <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="load" title="Load a save file (or drag & drop one onto the window)">⇪ LOAD FILE</button><button class="btn lg" style="flex:1" data-go="download" title="Download your profile and career as a file">⇩ SAVE FILE</button></div>
-      <button class="btn lg" data-go="unlocks">◈ UNLOCKS <span class="muted">(${S.meta.lp} LP)</span></button>
-      <button class="btn lg" data-go="settings">⚙ SETTINGS</button>
-      <button class="btn lg" data-go="howto">? HOW TO PLAY</button>
+      <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="profile">👤 PROFILE</button><button class="btn lg" style="flex:1" data-go="unlocks">◈ UNLOCKS <span class="muted">${S.meta.lp}</span></button></div>
+      <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="load" title="Load a profile file (or drag & drop one onto the window)">⇪ LOAD PROFILE</button><button class="btn lg" style="flex:1" data-go="download" title="Download your profile and career to a file">⇩ SAVE PROFILE</button></div>
+      <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="settings">⚙ SETTINGS</button><button class="btn lg" style="flex:1" data-go="howto">? HOW TO PLAY</button></div>
       ${document.documentElement.requestFullscreen ? '<button class="btn lg ghost" data-go="fullscreen">⛶ FULLSCREEN</button>' : ''}
     </div>
-    <div class="foot-note">Runs: ${S.meta.runs} · Best: ${S.meta.best.shifts} shifts · Highest tier: ${TIERS[S.meta.best.tier]}${Store.ok ? '' : '<br><span class="am">Storage unavailable — progress will not be saved.</span>'}</div>
+    <div class="foot-note">Signed in as <b class="cy">${esc(profileName())}</b> · Runs: ${S.meta.runs} · Best: ${S.meta.best.shifts} shifts · Highest tier: ${TIERS[S.meta.best.tier]}${Store.ok ? '' : '<br><span class="am">Storage unavailable — progress will not be saved.</span>'}</div>
   </div></div>`);
 }
 function showNewRun() {
@@ -2445,10 +2524,9 @@ function showNewRun() {
 function showUnlocks() {
   showOverlay('unlocks', `<div class="panel"><div class="panel-h"><h2>PERMANENT UNLOCKS</h2><span class="sp"></span><span class="chip">LEGACY POINTS <b>${S.meta.lp}</b></span></div><div class="panel-b">
     <p class="muted" style="margin-bottom:12px">Legacy Points are earned at the end of every run. Unlocks persist across all future careers.</p>
-    <div class="grid3">${UNLOCKS.map(u => { const own = hasU(u.id), req = u.need && !S.meta.ach[u.need]; return `<div class="card ${own ? 'owned' : ''} ${req ? 'locked' : ''}"><h4>${u.name}</h4><p class="mono" style="font-size:11.5px;color:var(--magenta)">${u.kind.toUpperCase()}</p><p>${u.desc}</p><div class="row"><span class="mono">${own ? '✔ OWNED' : u.cost + ' LP'}</span><span class="sp"></span>${own ? '' : `<button class="btn sm ${S.meta.lp >= u.cost && !req ? 'primary' : ''}" data-buy="${u.id}" ${S.meta.lp >= u.cost && !req ? '' : 'disabled'}>${req ? 'LOCKED' : 'BUY'}</button>`}</div></div>`; }).join('')}</div>
-    <h3 class="mono cy" style="font-size:12.5px;letter-spacing:.14em;margin:16px 0 8px">ACHIEVEMENTS</h3>
-    <div class="grid3">${Object.entries(ACH).map(([k, a]) => `<div class="card ${S.meta.ach[k] ? 'owned' : 'locked'}" style="padding:8px"><p style="color:var(--text)">${S.meta.ach[k] ? '🏆' : '🔒'} ${a.name}</p><p class="mono" style="font-size:11.5px">+${a.lp} LP (first time)</p></div>`).join('')}</div>
-  </div><div class="panel-f"><button class="btn" data-go="menu" data-primary="1">← Back</button></div></div>`);
+    <div class="grid3">${UNLOCKS.map(u => { const own = hasU(u.id), req = u.need && !S.meta.ach[u.need]; return `<div class="card ${own ? 'owned' : ''} ${req ? 'dim' : ''}"><h4>${u.name}</h4><p class="mono" style="font-size:11.5px;color:var(--magenta)">${u.kind.toUpperCase()}</p><p>${u.desc}</p><div class="row"><span class="mono">${own ? '✔ OWNED' : u.cost + ' LP'}</span><span class="sp"></span>${own ? '' : `<button class="btn sm ${S.meta.lp >= u.cost && !req ? 'primary' : ''}" data-buy="${u.id}" ${S.meta.lp >= u.cost && !req ? '' : 'disabled'}>${req ? 'LOCKED' : 'BUY'}</button>`}</div></div>`; }).join('')}</div>
+    <p class="muted" style="margin-top:14px">Achievements also award Legacy Points the first time you earn them. See them all on your Profile.</p>
+  </div><div class="panel-f"><button class="btn" data-go="menu" data-primary="1">← Back</button><span class="sp"></span><button class="btn" data-go="profile-ach">🏆 View achievements</button></div></div>`);
 }
 function showSettings(back = 'menu') {
   const st = S.meta.settings;
@@ -2480,6 +2558,7 @@ function showHowTo(back = 'menu') {
     <h3>RESOURCES</h3><ul><li><b>Energy</b> drains over time. When it's low, queries take 50% longer. Coffee (<kbd>Q</kbd>, refill <kbd>R</kbd>) and breaks restore it.</li><li><b>Caffeine</b> gives energy now and a crash later, and high caffeine raises stress.</li><li><b>Stress</b> rises with backlog, mistakes and night work. It falls with rest and days off.</li><li><b>Reputation</b> rises with accurate calls and good handoffs, and falls with SLA breaches and mistakes.</li></ul>
     <h3>POINTS</h3><ul><li><b>CP — Career Points</b> (top bar) belong to the current career. You earn them by catching real threats, handing off well, finishing shifts, containing major incidents and taking curse cards. Spend them on days off for rest, training and the certifications you need for promotion. Higher tiers earn more CP.</li><li><b>LP — Legacy Points</b> are earned when a run ends and are kept forever. Spend them in <b>Unlocks</b> on permanent perks and tools.</li></ul>
     <h3>MAJOR INCIDENTS</h3><p>Every 5th shift a major incident opens a timed bridge on Monitor 3. Solve at least 3 of 4 objectives before time runs out.</p>
+    <h3>PROFILE</h3><p>Your <b>Profile</b> (main menu or pause menu) shows your callsign, lifetime stats, all achievements with progress, and a history of past careers. You can replay any career's seed from there. <b>Save Profile</b> downloads everything, including a career in progress, to a file. <b>Load Profile</b> (or drag and drop the file) restores it on any browser or device.</p>
     <h3>DAYS OFF & META</h3><p>On days off, spend Career Points (CP) on rest, training and certifications. Certifications plus reputation unlock promotions. When a run ends you earn Legacy Points for permanent perks and tools.</p>
     <h3>ON A PHONE OR TABLET</h3><p>Use the tab bar at the bottom to switch between <b>Queue</b>, <b>Case</b> (the investigation workspace) and <b>Comms</b>. Badges show open alerts and unread messages. Tapping an alert opens it in Case. The ☕ button drinks coffee, ❚❚ pauses, 🃏 shows your cards, and MENU opens saves and settings. Landscape gives more room. For full screen, use "Add to Home Screen" or the Fullscreen button where your browser supports it.</p>
     <h3>KEYS</h3><p><kbd>J</kbd>/<kbd>K</kbd> queue · <kbd>1</kbd>–<kbd>5</kbd> evidence tabs · <kbd>F</kbd> <kbd>B</kbd> <kbd>E</kbd> <kbd>P</kbd> <kbd>I</kbd> <kbd>D</kbd> decide · <kbd>Q</kbd> sip · <kbd>R</kbd> refill · <kbd>Space</kbd> pause · <kbd>T</kbd> fast-forward · <kbd>M</kbd> sound · <kbd>L</kbd> lamp · <kbd>Esc</kbd> menu</p>
@@ -2493,8 +2572,8 @@ function showPauseMenu() {
     <button class="btn lg" data-go="settings2">⚙ SETTINGS</button>
     <button class="btn lg" data-go="howto2">? HOW TO PLAY</button>
     <button class="btn lg" data-go="cards">🃏 ACTIVE CARDS (${(S.run.cards || []).reduce((t, c) => t + c.n, 0)})</button>
-    <button class="btn lg" data-go="download">⇩ DOWNLOAD SAVE FILE</button>
-    <button class="btn lg" data-go="load2">⇪ LOAD SAVE FILE</button>
+    <button class="btn lg" data-go="profile2">👤 PROFILE</button>
+    <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="download">⇩ SAVE PROFILE</button><button class="btn lg" style="flex:1" data-go="load2">⇪ LOAD PROFILE</button></div>
     ${document.documentElement.requestFullscreen ? '<button class="btn lg" data-go="fullscreen">⛶ TOGGLE FULLSCREEN</button>' : ''}
     <button class="btn lg" data-go="savequit">⏏ SAVE & QUIT TO MENU</button>
     <button class="btn danger lg" data-go="resign">✖ RESIGN (END RUN)</button>
@@ -2564,7 +2643,7 @@ function showHome() {
   const r = S.run, h = r.home, left = h.slots - h.used, pr = canPromote();
   const sched = r.schedule.slice(r.dayIdx, r.dayIdx + 14).map((t, i) => `<div class="sday ${t} ${i === 0 ? 'now' : ''}">${dayLabel(r.dayIdx + i)}<small>${t === 'OFF' ? 'off' : t === 'DAY' ? '☀ day' : '☾ night'}</small></div>`).join('');
   const act = ACTIVITIES.map(a => { const done = a.once && r.training[a.id], ok = !done && left >= a.slots && r.cp >= a.cp; return `<div class="card ${done ? 'owned' : ''}"><h4>${a.name}</h4><p>${a.desc}</p><div class="row"><span class="mono muted">${a.slots} slot${a.slots > 1 ? 's' : ''} · ${a.cp} CP</span><span class="sp"></span>${done ? '<span class="gr mono">✔ DONE</span>' : `<button class="btn sm ${ok ? 'primary' : ''}" data-act-home="${a.id}" ${ok ? '' : 'disabled'}>DO IT</button>`}</div></div>`; }).join('');
-  const certs = CERTS.map(c => { const own = r.certs[c.id], req = c.req && !r.certs[c.req], ok = !own && !req && left >= 2 && r.cp >= c.cost; return `<div class="card ${own ? 'owned' : req ? 'locked' : ''}"><h4>🎓 ${c.name}</h4><p>${c.desc}${c.req ? ' Requires ' + CERTS.find(x => x.id === c.req).name.split(' (')[0] + '.' : ''}</p><div class="row"><span class="mono muted">2 slots · ${c.cost} CP</span><span class="sp"></span>${own ? '<span class="gr mono">✔ CERTIFIED</span>' : `<button class="btn sm ${ok ? 'primary' : ''}" data-cert="${c.id}" ${ok ? '' : 'disabled'}>STUDY & SIT EXAM</button>`}</div></div>`; }).join('');
+  const certs = CERTS.map(c => { const own = r.certs[c.id], req = c.req && !r.certs[c.req], ok = !own && !req && left >= 2 && r.cp >= c.cost; return `<div class="card ${own ? 'owned' : req ? 'dim' : ''}"><h4>🎓 ${c.name}</h4><p>${c.desc}${c.req ? ' Requires ' + CERTS.find(x => x.id === c.req).name.split(' (')[0] + '.' : ''}</p><div class="row"><span class="mono muted">2 slots · ${c.cost} CP</span><span class="sp"></span>${own ? '<span class="gr mono">✔ CERTIFIED</span>' : `<button class="btn sm ${ok ? 'primary' : ''}" data-cert="${c.id}" ${ok ? '' : 'disabled'}>STUDY & SIT EXAM</button>`}</div></div>`; }).join('');
   let promo = '';
   if (pr) { const p = pr.p; promo = `<div class="card ${pr.ok ? 'owned' : ''}" style="margin-bottom:12px"><h4>⬆ PROMOTION TO ${TIERS[r.tier + 1].toUpperCase()}</h4><p>Shifts ${r.shiftCount}/${p.shifts} ${r.shiftCount >= p.shifts ? '✔' : '✖'} · Reputation ${Math.round(r.rep)}/${p.rep} ${r.rep >= p.rep ? '✔' : '✖'} · ${CERTS.find(c => c.id === p.cert).name} ${r.certs[p.cert] ? '✔' : '✖'}</p><p>Higher tiers earn more CP per correct call, and alerts get harder.</p><div class="row"><span class="sp"></span><button class="btn ${pr.ok ? 'primary' : ''}" data-go="promote" ${pr.ok ? '' : 'disabled'}>ACCEPT PROMOTION</button></div></div>`; }
   else promo = `<div class="card owned" style="margin-bottom:12px"><h4>👑 SOC LEAD</h4><p>You made it to the top. Keep going for glory, or retire a legend (+25 LP).</p><div class="row"><span class="sp"></span><button class="btn good" data-go="retire">RETIRE ON TOP</button></div></div>`;
@@ -2572,7 +2651,7 @@ function showHome() {
     <div class="panel-b"><div class="sched" style="margin-bottom:12px">${sched}</div>${promo}
     <div class="hosec">REST & TRAINING</div><div class="grid3">${act}</div>
     <div class="hosec" style="margin-top:14px">CERTIFICATIONS</div><div class="grid2">${certs}</div></div>
-    <div class="panel-f"><span class="muted mono" style="font-size:12.5px">${TIERS[r.tier]} · ${r.shiftCount} shifts survived · seed ${r.seed}</span><span class="sp"></span><button class="btn" data-go="download">⇩ Save file</button><button class="btn" data-go="menuFromHome">Save & quit</button><button class="btn primary lg" data-go="work" data-primary="1">Back to work: ${dayLabel(r.dayIdx + h.off)} ${r.schedule[r.dayIdx + h.off]} ▶</button></div></div>`);
+    <div class="panel-f"><span class="muted mono" style="font-size:12.5px">${TIERS[r.tier]} · ${r.shiftCount} shifts survived · seed ${r.seed}</span><span class="sp"></span><button class="btn" data-go="download">⇩ Save profile</button><button class="btn" data-go="menuFromHome">Save & quit</button><button class="btn primary lg" data-go="work" data-primary="1">Back to work: ${dayLabel(r.dayIdx + h.off)} ${r.schedule[r.dayIdx + h.off]} ▶</button></div></div>`);
   renderHUD(); renderDesk();
 }
 function doHome(id) {
@@ -2583,7 +2662,7 @@ function doHome(id) {
 function doCert(id) {
   const r = S.run, h = r.home, c = CERTS.find(x => x.id === id);
   if (!c || r.certs[id] || (c.req && !r.certs[c.req]) || h.slots - h.used < 2 || r.cp < c.cost) return;
-  h.used += 2; r.cp -= c.cost; r.certs[id] = true; addStress(4); Sound.good(); toast('Certified: ' + c.name, 'good'); save(); showHome();
+  h.used += 2; r.cp -= c.cost; r.certs[id] = true; if (CERTS.every(x => r.certs[x.id])) grantAch('certall'); addStress(4); Sound.good(); toast('Certified: ' + c.name, 'good'); save(); showHome();
 }
 
 /* ---------- Summary ---------- */
@@ -2614,7 +2693,7 @@ function showSummary({ cause, detail, lp, acc, newAch, curseLP }) {
       ${UNLOCKS.some(u => !hasU(u.id) && S.meta.lp >= u.cost && !(u.need && !S.meta.ach[u.need])) ? '<p class="gr" style="margin-top:6px">New unlocks are affordable in the Unlocks menu!</p>' : ''}</div>
     </div>
     <div class="card" style="margin-top:12px"><h4>SHIFT CARDS THIS CAREER</h4>${r.cards.length ? '<p>' + r.cards.map(c => { const d = CARD_BY[c.id]; return d ? `${d.ico} ${esc(d.name)}${c.n > 1 ? ' ×' + c.n : ''}` : ''; }).join(' · ') + '</p>' : '<p class="muted">No cards taken.</p>'}${curseLP ? `<p class="mg" style="margin-top:4px">Curses paid out +${curseLP} LP (included above).</p>` : ''}</div>
-  </div><div class="panel-f"><button class="btn" data-go="download" title="Download your profile (unlocks, LP, achievements)">⇩ Save file</button><button class="btn" data-go="unlocks">◈ Unlocks</button><button class="btn" data-go="menu">Main menu</button><span class="sp"></span><button class="btn primary lg" data-go="new" data-primary="1">NEW RUN ▶</button></div></div>`);
+  </div><div class="panel-f"><button class="btn" data-go="download" title="Download your profile (unlocks, LP, achievements, history)">⇩ Save profile</button><button class="btn" data-go="profile-hist">📜 Run history</button><button class="btn" data-go="unlocks">◈ Unlocks</button><button class="btn" data-go="menu">Main menu</button><span class="sp"></span><button class="btn primary lg" data-go="new" data-primary="1">NEW RUN ▶</button></div></div>`);
   S.run = null; renderAll();
 }
 
@@ -2638,40 +2717,41 @@ function downloadSave() {
   try {
     const p = buildSaveFile(), r = p.run;
     const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
-    const name = `signal-noise-${r ? r.seed + '-shift' + (r.shiftCount + 1) : 'profile'}-${stamp}.json`;
+    const nm = profileName().replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'analyst';
+    const name = `signal-noise-profile-${nm}${r ? '-' + r.seed + '-shift' + (r.shiftCount + 1) : ''}-${stamp}.json`;
     const blob = new Blob([JSON.stringify(p)], { type: 'application/json' });
     const url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    toast('Save file downloaded: ' + name, 'good');
-  } catch (e) { toast('Could not create the save file', 'bad'); }
+    toast('Profile saved: ' + name, 'good');
+  } catch (e) { toast('Could not create the profile file', 'bad'); }
 }
 function describeSave(p) {
   const r = p.run, m = p.meta || {};
   const when = p.exportedAt ? new Date(p.exportedAt).toLocaleString() : 'unknown date';
   const runTxt = r ? `<b>Career in progress</b> · seed <span class="mono">${esc(r.seed)}</span> · ${esc(TIERS[r.tier] || '?')} · ${r.shiftCount} shift(s) survived · ${r.phase === 'home' ? 'on days off' : r.shift ? 'during a ' + esc(r.shift.type.toLowerCase()) + ' shift (' + fmtClock(r.shift.base + r.shift.t) + ')' : ''}<br>Stress ${Math.round(r.stress)} · Reputation ${Math.round(r.rep)} · CP ${r.cp} · ${(r.cards || []).length} card(s)`
     : '<b>No run in progress</b> (profile only)';
-  return `<p>${runTxt}</p><p>Profile: ${m.lp || 0} LP · ${Object.keys(m.unlocks || {}).length} unlock(s) · ${Object.keys(m.ach || {}).length} achievement(s) · best ${(m.best && m.best.shifts) || 0} shifts</p><p class="muted">Exported ${esc(when)}</p>`;
+  return `<p>Callsign: <b class="cy">${esc((m.profile && m.profile.name) || 'Analyst')}</b> · ${(m.history || []).length} past career(s) in history</p><p>${runTxt}</p><p>Profile: ${m.lp || 0} LP · ${Object.keys(m.unlocks || {}).length} unlock(s) · ${Object.keys(m.ach || {}).length} achievement(s) · best ${(m.best && m.best.shifts) || 0} shifts</p><p class="muted">Exported ${esc(when)}</p>`;
 }
 /** Validate and load a save file chosen by the player. */
 function handleSaveFile(file) {
   if (!file) return;
-  if (file.size > 5e6) { toast('That file is too large to be a save file', 'bad'); return; }
+  if (file.size > 5e6) { toast('That file is too large to be a profile file', 'bad'); return; }
   const fr = new FileReader();
   fr.onerror = () => toast('Could not read that file', 'bad');
   fr.onload = () => {
     let p;
-    try { p = JSON.parse(fr.result); } catch (e) { modal({ title: 'NOT A SAVE FILE', ico: '⚠', body: '<p>That file isn\'t valid JSON. Choose a <span class="mono">.json</span> save downloaded from SIGNAL//NOISE.</p>' }); return; }
-    if (!p || p.format !== SAVE_FORMAT || typeof p.meta !== 'object' || !p.meta) { modal({ title: 'NOT A SAVE FILE', ico: '⚠', body: '<p>This JSON file wasn\'t created by SIGNAL//NOISE.</p>' }); return; }
+    try { p = JSON.parse(fr.result); } catch (e) { modal({ title: 'NOT A PROFILE FILE', ico: '⚠', body: '<p>That file isn\'t valid JSON. Choose a <span class="mono">.json</span> profile downloaded from SIGNAL//NOISE.</p>' }); return; }
+    if (!p || p.format !== SAVE_FORMAT || typeof p.meta !== 'object' || !p.meta) { modal({ title: 'NOT A PROFILE FILE', ico: '⚠', body: '<p>This JSON file wasn\'t created by SIGNAL//NOISE.</p>' }); return; }
     if (p.run && (typeof p.run !== 'object' || !p.run.seed || !p.run.schedule || !p.run.stats)) { modal({ title: 'DAMAGED SAVE', ico: '⚠', body: '<p>The run data in this file is incomplete and can\'t be loaded.</p>' }); return; }
     const ok = hashStr(JSON.stringify({ meta: p.meta, run: p.run || null })).toString(16) === p.checksum;
     const live = S.run && !S.run.ended;
     if (live) S.paused = true;
     modal({
-      title: 'LOAD SAVE FILE?', ico: '⇪', body: describeSave(p) +
+      title: 'LOAD PROFILE?', ico: '⇪', body: describeSave(p) +
         (ok ? '' : '<p class="am">⚠ The checksum doesn\'t match. The file may have been edited or damaged. Load it anyway?</p>') +
         `<p class="${live || getSavedRun() ? 'am' : 'muted'}">Loading replaces your current profile${live || getSavedRun() ? ' <b>and the career in progress in this browser</b>' : ''}.</p>`,
-      buttons: [{ label: 'Cancel', cls: 'ghost' }, { label: 'Load save', cls: 'primary', fn() { applySaveFile(p); } }],
+      buttons: [{ label: 'Cancel', cls: 'ghost' }, { label: 'Load profile', cls: 'primary', fn() { applySaveFile(p); } }],
     });
   };
   fr.readAsText(file);
@@ -2682,16 +2762,16 @@ function applySaveFile(p) {
   applySettings(); saveMeta();
   if (p.run && !p.run.ended) {
     S.run = normalizeRun(p.run); Store.set(SAVE_RUN, S.run);
-    toast('Save loaded — welcome back', 'good');
+    toast('Profile loaded — welcome back, ' + profileName(), 'good');
     resumeRun();
   } else {
     S.run = null; Store.del(SAVE_RUN); renderAll(); showStart(); toast('Profile loaded', 'good');
   }
 }
 function showLoadScreen(back = 'menu') {
-  showOverlay('load', `<div class="panel" style="width:min(620px,calc(var(--sw) * 94))"><div class="panel-h"><h2>LOAD SAVE FILE</h2></div><div class="panel-b">
-    <div class="dropzone" id="dz" tabindex="0" role="button"><b>⇪ DROP YOUR SAVE FILE HERE</b>or click to choose a <span class="mono">.json</span> file</div>
-    <p class="muted" style="margin-top:12px">Save files hold your career in progress (even mid-shift) plus permanent unlocks, Legacy Points, achievements and settings. Use them to move between browsers or computers, or as a backup. You can also drop a save file anywhere on the game window.</p>
+  showOverlay('load', `<div class="panel" style="width:min(620px,calc(var(--sw) * 94))"><div class="panel-h"><h2>LOAD PROFILE</h2></div><div class="panel-b">
+    <div class="dropzone" id="dz" tabindex="0" role="button"><b>⇪ DROP YOUR PROFILE FILE HERE</b>or click to choose a <span class="mono">.json</span> file</div>
+    <p class="muted" style="margin-top:12px">A profile file holds your callsign, lifetime stats, run history, achievements, permanent unlocks, Legacy Points and settings, plus any career in progress (even mid-shift). Use it to move between browsers or devices, or as a backup. You can also drop a profile file anywhere on the game window.</p>
   </div><div class="panel-f"><button class="btn ghost" data-go="${back}">← Back</button></div></div>`);
   const dz = $('#dz');
   dz.addEventListener('click', () => $('#fileIn').click());
@@ -2758,6 +2838,87 @@ function fit() {
   drawSky(true);
 }
 
+
+/* =====================================================================
+   18d. PROFILE — callsign, lifetime stats, achievements, run history
+   ===================================================================== */
+function fmtDate(iso, withTime) { try { const d = new Date(iso); return withTime ? d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : d.toLocaleDateString([], { dateStyle: 'medium' }); } catch (e) { return '—'; } }
+function profileName() { return (S.meta.profile && S.meta.profile.name) || 'Analyst'; }
+function showProfile(tab = 'stats', back = 'menu') {
+  const m = S.meta, Lf = m.life, achN = Object.keys(ACH).filter(k => m.ach[k]).length, achT = Object.keys(ACH).length;
+  const live = getSavedRun();
+  const tabs = [['stats', 'OVERVIEW'], ['ach', `ACHIEVEMENTS ${achN}/${achT}`], ['hist', `RUN HISTORY (${m.history.length})`]];
+  const acc = Lf.decisions ? Math.round(Lf.correct / Lf.decisions * 100) + '%' : '—';
+  let body = '';
+  if (tab === 'stats') {
+    const ends = Object.entries(ENDINGS).map(([k, [ico, lbl]]) => `<span class="chip" title="${lbl}">${ico} ${lbl} <b>${Lf.endings[k] || 0}</b></span>`).join(' ');
+    body = `<div class="card" style="margin-bottom:12px"><div class="field" style="margin:0"><label>CALLSIGN</label><div style="display:flex;gap:6px"><input type="text" id="pName" maxlength="16" value="${esc(profileName())}" style="flex:1"><button class="btn" data-go="pname">Save name</button></div></div>
+      <p class="muted" style="margin-top:8px">Profile created ${fmtDate(m.profile.created)} · ${m.runs} career${m.runs === 1 ? '' : 's'} started${live ? ` · <span class="cy">career in progress: seed ${esc(live.seed)}, ${live.shiftCount} shift(s), ${esc(TIERS[live.tier])}</span>` : ''}</p></div>
+      <div class="grid3">
+        <div class="card"><div class="bigstat">${Lf.runs}<small>CAREERS FINISHED</small></div></div>
+        <div class="card"><div class="bigstat">${Lf.shifts}<small>SHIFTS SURVIVED</small></div></div>
+        <div class="card"><div class="bigstat">${Lf.decisions}<small>ALERTS HANDLED</small></div></div>
+        <div class="card"><div class="bigstat">${acc}<small>LIFETIME ACCURACY</small></div></div>
+        <div class="card"><div class="bigstat">${Lf.prevented}<small>INCIDENTS PREVENTED</small></div></div>
+        <div class="card"><div class="bigstat">${Lf.bossWon}/${Lf.bosses}<small>MAJOR INCIDENTS CONTAINED</small></div></div>
+        <div class="card"><div class="bigstat">${Lf.nights}<small>NIGHT SHIFTS</small></div></div>
+        <div class="card"><div class="bigstat">${Lf.cards}<small>SHIFT CARDS TAKEN</small></div></div>
+        <div class="card"><div class="bigstat">${m.lpTotal}<small>LEGACY POINTS EARNED</small></div></div>
+        <div class="card"><div class="bigstat">${m.best.shifts}<small>LONGEST CAREER (SHIFTS)</small></div></div>
+        <div class="card"><div class="bigstat" style="font-size:17px">${TIERS[m.best.tier]}<small>HIGHEST TIER</small></div></div>
+        <div class="card"><div class="bigstat">${UNLOCKS.filter(u => m.unlocks[u.id]).length}/${UNLOCKS.length}<small>PERMANENT UNLOCKS</small></div></div>
+      </div>
+      <div class="hosec" style="margin-top:14px">HOW CAREERS ENDED</div><div style="display:flex;flex-wrap:wrap;gap:6px">${ends}</div>`;
+  } else if (tab === 'ach') {
+    body = ACH_CATS.map(cat => `<div class="hosec">${cat.toUpperCase()}</div><div class="grid2">` + Object.entries(ACH).filter(([, a]) => a.cat === cat).map(([k, a]) => {
+      const got = m.ach[k], pg = !got && a.prog ? a.prog(m) : null;
+      return `<div class="card ${got ? 'owned' : 'dim'}" style="padding:9px 11px"><h4 style="margin-bottom:2px">${got ? '🏆' : '🔒'} ${esc(a.name)}</h4><p>${esc(a.desc)}</p>
+        ${pg ? `<div class="bar" style="margin-top:6px"><i style="width:${clamp(pg[0] / pg[1] * 100, 0, 100)}%;background:var(--cyan)"></i></div><p class="mono" style="font-size:11.5px;margin-top:3px">${Math.min(pg[0], pg[1])} / ${pg[1]}</p>` : ''}
+        <p class="mono" style="font-size:11.5px;margin-top:4px">${got ? (typeof got === 'string' ? 'Unlocked ' + fmtDate(got) : 'Unlocked') + ' · ' : ''}+${a.lp} LP</p></div>`;
+    }).join('') + '</div>').join('');
+  } else {
+    body = m.history.length ? `<p class="muted" style="margin-bottom:8px">Your last ${m.history.length} career${m.history.length === 1 ? '' : 's'}, newest first. Tap one for details or to replay its seed.</p>` + m.history.map((h, i) => {
+      const [ico, lbl] = ENDINGS[h.cause] || ['•', h.cause];
+      return `<div class="ticket" data-hist="${i}"><div class="th"><span style="font-size:16px">${ico}</span><b>${esc(lbl)}</b><span class="sp"></span><span class="muted">${fmtDate(h.date, true)}</span></div>
+        <div class="mono" style="font-size:12px;margin-top:3px">${h.shifts} shift${h.shifts === 1 ? '' : 's'} · ${esc(TIER_BADGE[h.tier] || '')} · ${h.acc}% accuracy · ${h.prevented} prevented · <span class="cy">+${h.lp} LP</span> · seed ${esc(h.seed)}</div></div>`;
+    }).join('') : '<div class="qempty"><b>NO FINISHED CAREERS YET</b>Your completed runs will appear here.</div>';
+  }
+  showOverlay('profile', `<div class="panel" style="width:min(940px,calc(var(--sw) * 96))"><div class="panel-h"><h2>👤 ${esc(profileName().toUpperCase())}</h2><span class="sp"></span><span class="chip">LP <b>${m.lp}</b></span><span class="chip">🏆 <b>${achN}/${achT}</b></span></div>
+    <div class="ctabs" style="padding:8px 16px 0">${tabs.map(([k, l]) => `<button class="ctab ${k === tab ? 'on' : ''}" data-ptab="${k}">${l}</button>`).join('')}</div>
+    <div class="panel-b">${body}</div>
+    <div class="panel-f"><button class="btn ghost" data-go="${back}">← Back</button><span class="sp"></span><button class="btn" data-go="${back === 'pause' ? 'load2' : 'load'}" title="Load a profile from a file">⇪ Load profile</button><button class="btn primary" data-go="download" title="Download your profile and career to a file">⇩ Save profile</button></div></div>`);
+  S.profileBack = back; S.profileTab = tab;
+}
+function showHistoryDetail(i) {
+  const h = S.meta.history[i]; if (!h) return;
+  const [ico, lbl] = ENDINGS[h.cause] || ['•', h.cause];
+  const cards = (h.cards || []).map(c => { const d = CARD_BY[c.id]; return d ? `${d.ico} ${esc(d.name)}${c.n > 1 ? ' ×' + c.n : ''}` : ''; }).filter(Boolean).join(' · ');
+  modal({
+    title: `${ico} ${lbl.toUpperCase()}`, wide: true, body: `
+    <p class="muted">${fmtDate(h.date, true)} · seed <span class="mono cy">${esc(h.seed)}</span> · started as ${esc(TIERS[h.startTier] || TIERS[0])}</p>
+    ${h.detail ? `<p>${esc(h.detail)}</p>` : ''}
+    <div class="grid3" style="margin-top:8px">
+      <div class="card"><div class="bigstat">${h.shifts}<small>SHIFTS</small></div></div>
+      <div class="card"><div class="bigstat" style="font-size:17px">${esc(TIERS[h.tier])}<small>FINAL TIER</small></div></div>
+      <div class="card"><div class="bigstat">${h.correct}/${h.decisions}<small>CORRECT CALLS (${h.acc}%)</small></div></div>
+      <div class="card"><div class="bigstat">${h.prevented}<small>INCIDENTS PREVENTED</small></div></div>
+      <div class="card"><div class="bigstat">${h.bossWon}/${h.bosses}<small>MAJOR INCIDENTS</small></div></div>
+      <div class="card"><div class="bigstat">+${h.lp}<small>LEGACY POINTS</small></div></div>
+    </div>
+    <p style="margin-top:10px"><b>SLA breaches</b> ${h.sla} · <b>Missed threats</b> ${h.missed} · <b>Over-escalations</b> ${h.overEsc} · <b>Night shifts</b> ${h.nights} · <b>Final rep/stress</b> ${h.rep}/${h.stress}</p>
+    <p><b>Handoff grades</b> <span class="mono">${(h.grades || []).join(' ') || '—'}</span></p>
+    <p><b>Certifications</b> ${(h.certs || []).map(id => { const c = CERTS.find(x => x.id === id); return c ? esc(c.name.split(' (')[0]) : ''; }).join(', ') || '—'}</p>
+    <p><b>Cards</b> ${cards || '—'}</p>
+    <p><b>Achievements unlocked</b> ${(h.ach || []).map(k => ACH[k] ? '🏆 ' + esc(ACH[k].name) : '').join(' · ') || '—'}</p>`,
+    buttons: [{ label: 'Delete entry', cls: 'ghost', fn() { S.meta.history.splice(i, 1); saveMeta(); showProfile('hist', S.profileBack); } }, { label: 'Close' }, { label: '↻ Replay this seed', cls: 'primary', fn() { if (getSavedRun() && !confirmReplace()) return; replaySeed(h.seed, h.startTier || 0); } }],
+  });
+}
+function confirmReplace() { return window.confirm('Starting a new career replaces the one in progress. Continue?'); }
+function replaySeed(seed, tier) {
+  const t = tier === 2 && hasU('start3') ? 2 : tier === 1 && hasU('start2') ? 1 : 0;
+  closeAllModals(); S.suspended = null; newRun(seed, t);
+}
+
 /* =====================================================================
    19. INPUT — mouse delegation & keyboard shortcuts
    ===================================================================== */
@@ -2795,9 +2956,11 @@ function bindInput() {
   });
   $('#overlay').addEventListener('click', e => {
     const g = e.target.closest('[data-go]'), buy = e.target.closest('[data-buy]'), ah = e.target.closest('[data-act-home]'), ce = e.target.closest('[data-cert]');
-    if (buy) { const u = UNLOCKS.find(x => x.id === buy.dataset.buy); if (u && S.meta.lp >= u.cost) { S.meta.lp -= u.cost; S.meta.unlocks[u.id] = true; saveMeta(); Sound.good(); toast('Unlocked: ' + u.name, 'good'); showUnlocks(); } return; }
+    if (buy) { const u = UNLOCKS.find(x => x.id === buy.dataset.buy); if (u && S.meta.lp >= u.cost) { S.meta.lp -= u.cost; S.meta.unlocks[u.id] = true; saveMeta(); if (UNLOCKS.every(x => S.meta.unlocks[x.id])) grantAch('allunlocks'); Sound.good(); toast('Unlocked: ' + u.name, 'good'); showUnlocks(); } return; }
     if (ah) { doHome(ah.dataset.actHome); return; }
     if (ce) { doCert(ce.dataset.cert); return; }
+    const pt = e.target.closest('[data-ptab]'); if (pt) { showProfile(pt.dataset.ptab, S.profileBack); return; }
+    const hi = e.target.closest('[data-hist]'); if (hi) { showHistoryDetail(+hi.dataset.hist); return; }
     if (!g) return;
     Sound.click();
     const go = g.dataset.go;
@@ -2812,6 +2975,11 @@ function bindInput() {
       case 'download': downloadSave(); break;
       case 'cards': closeOverlay(); showCardsModal(); break;
       case 'fullscreen': toggleFullscreen(); break;
+      case 'profile': showProfile('stats', 'menu'); break;
+      case 'profile2': showProfile('stats', 'pause'); break;
+      case 'profile-ach': showProfile('ach', 'menu'); break;
+      case 'profile-hist': showProfile('hist', 'menu'); break;
+      case 'pname': { const v = ($('#pName').value || '').trim().slice(0, 16) || 'Analyst'; S.meta.profile.name = v; saveMeta(); renderDesk(); toast('Callsign saved: ' + v, 'good'); showProfile('stats', S.profileBack); break; }
       case 'unlocks': showUnlocks(); break;
       case 'settings': showSettings('menu'); break;
       case 'settings2': showSettings('pause'); break;

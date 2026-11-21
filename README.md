@@ -90,7 +90,7 @@ Every 5th shift, a major incident (ransomware outbreak, supply-chain compromise,
 
 ### Progression
 - **Within a run:** on days off, spend Career Points on rest, training and (fictional) certifications. Promotions need shifts survived, reputation, and the right cert.
-- **Across runs:** earn Legacy Points to unlock permanent perks and tools: *Grep Ninja*, *Barista-Grade Coffee*, *Tuned Detection Rules*, *Mentor on Call*, *Threat Intel Feed*, *SOAR Playbooks*, and higher starting tiers.
+- **Across runs:** earn Legacy Points (from finished careers and first-time achievements) to unlock permanent perks and tools: *Grep Ninja*, *Barista-Grade Coffee*, *Tuned Detection Rules*, *Mentor on Call*, *Threat Intel Feed*, *SOAR Playbooks*, and higher starting tiers.
 
 ---
 
@@ -117,20 +117,32 @@ Everything is also playable with the mouse, or with touch on phones and tablets 
 
 ---
 
-## 💾 Save files (move between browsers & devices)
+## 💾 Save & load your profile (move between browsers & devices)
 
-Progress autosaves in your browser. To take it somewhere else, use a **save file**:
+Progress autosaves in your browser. To take it somewhere else, save your **profile** to a file:
 
-- **Download:** *⇩ Save File* on the main menu, *Download save file* in the pause menu (`Esc`), or the button on the days-off screen and the run summary. You can do this mid-shift.
-- **Load:** *⇪ Load File* on the main menu or pause menu (on phones this opens the file picker), **or drag and drop the `.json` file anywhere on the game window**. You'll see a preview (seed, tier, shift, stats) before anything is replaced.
+- **Save:** *⇩ Save Profile* on the main menu, the pause menu (`Esc`), the Profile screen, the days-off screen or the run summary. You can do this mid-shift.
+- **Load:** *⇪ Load Profile* on the main menu, pause menu or Profile screen (on phones this opens the file picker), **or drag and drop the `.json` file anywhere on the game window**. You'll see a preview (seed, tier, shift, stats) before anything is replaced.
 
-A save file contains your career in progress (including mid-shift state and active cards) plus your permanent unlocks, Legacy Points, achievements and settings. Files carry a checksum, so damaged or edited files are flagged before loading.
+A profile file contains your callsign, lifetime stats, run history, achievements, permanent unlocks, Legacy Points and settings, plus any career in progress (including mid-shift state and active cards). Files carry a checksum, so damaged or edited files are flagged before loading.
+
+---
+
+## 👤 Profile, achievements & run history
+
+Open **👤 Profile** from the main menu or pause menu:
+
+- **Overview:** set your callsign (it appears on your desk ID badge) and see lifetime stats: careers finished, shifts survived, alerts handled, accuracy, incidents prevented, major incidents contained, cards taken, Legacy Points earned, your best career, and how your careers ended.
+- **Achievements:** 34 achievements across five categories (Career, Skill, Incidents, Cards, Lifetime), each with its unlock date and LP reward. Lifetime achievements show progress bars.
+- **Run history:** your last 100 careers, each with ending, date, seed, shifts, tier, accuracy and LP. Open one to see its full breakdown (handoff grades, certifications, cards, achievements), replay its seed, or delete it.
+
+![Profile overview](screenshots/profile.png)
 
 ---
 
 ## 🎲 Seeds
 
-Every run uses a seeded RNG. The seed appears on the sticky note on your desk and in the run summary. Share it, and anyone entering the same seed gets the same career: the same alerts, handoffs and events.
+Every run uses a seeded RNG. The seed appears on the sticky note on your desk, in the run summary and in your run history, where you can replay it with one tap. Share it, and anyone entering the same seed gets the same career: the same alerts, handoffs and events.
 
 ---
 
@@ -142,7 +154,7 @@ Every run uses a seeded RNG. The seed appears on the sticky note on your desk an
 - CRT scanlines on/off
 - Text & interface size (Normal / Large / Extra large)
 
-Progress is saved in `localStorage` and the game pauses itself when you switch tabs. If storage is unavailable (e.g., some private-browsing modes), the game still runs, and a downloaded save file keeps your progress.
+Progress is saved in `localStorage` and the game pauses itself when you switch tabs. If storage is unavailable (e.g., some private-browsing modes), the game still runs, and a saved profile file keeps your progress.
 
 ---
 
@@ -166,7 +178,7 @@ The script is organized into numbered, commented sections:
 14. Boss encounters (incident bridge) and mid-shift cards
 15. Tutorial
 16. Audio
-17–20. Rendering, screens, save files, fit-to-window scaling, mobile touch layout, input and the main loop
+17–20. Rendering, screens, profile & run history, save/load, fit-to-window scaling, mobile touch layout, input and the main loop
 
 ### Tuning
 To make the game easier or harder, start with these:
@@ -175,6 +187,7 @@ To make the game easier or harder, start with these:
 - `resources()`: energy drain and stress accumulation
 - `TYPE_W`: the mix of alert types on day vs. night shifts
 - `CARDS`: shift card effects, stack limits and curse payouts
+- `ACH`: achievements, their LP rewards and lifetime progress goals
 
 ---
 
