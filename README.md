@@ -14,7 +14,7 @@ The whole game is **one self-contained HTML file**: no libraries, no build step,
 
 - **Locally:** download `index.html` and double-click it. It works in any modern desktop browser (Chrome, Firefox, Edge).
 - **Online:** if GitHub Pages is enabled for this repo, play at
-  `https://<your-username>.github.io/<repo-name>/`
+  `https://ShieldSyncOfficial.github.io/signal-noise/`
 
 The whole interface scales to fit whatever window it's in, from a small laptop window to a 4K monitor, so nothing gets cut off. Text size can be adjusted in **Settings**.
 
