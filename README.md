@@ -4,7 +4,7 @@
 
 **SIGNAL//NOISE** is a browser roguelike where you play a Security Operations Center (SOC) analyst at a 24/7/365 SOC. Each run is a career. Triage alerts, investigate logs, write shift handoffs, and climb from **Tier 1 Analyst** to **SOC Lead** before stress, a ruined reputation, or a catastrophic breach ends it all.
 
-The whole game is **one self-contained HTML file**: no libraries, no build step, no network requests. It runs fully offline.
+The whole game is **one self-contained HTML file**: no libraries and no build step. It runs fully offline. The only optional network use is downloading the official leaderboard when you open it.
 
 ![Day shift at the analyst's desk](screenshots/day-shift.png)
 
@@ -15,6 +15,10 @@ The whole game is **one self-contained HTML file**: no libraries, no build step,
 - **Locally:** download `index.html` and double-click it. It works in any modern desktop browser (Chrome, Firefox, Edge).
 - **Online:** if GitHub Pages is enabled for this repo, play at
   `https://<your-username>.github.io/<repo-name>/`
+
+**First launch:** you'll pick your analyst **callsign**, then go through a short, required **walkthrough** (about 5 minutes) that explains everything in plain language, with hands-on practice, before your first career. You can replay it any time from **🎓 Tutorial** on the main menu. **? How to Play** is the quick reference.
+
+![Walkthrough practice page](screenshots/walkthrough.png)
 
 The whole interface scales to fit whatever window it's in, from a small laptop window to a 4K monitor, so nothing gets cut off. Text size can be adjusted in **Settings**.
 
@@ -117,6 +121,34 @@ Everything is also playable with the mouse, or with touch on phones and tablets 
 
 ---
 
+## 🎚 Difficulty
+
+Choose a difficulty for each career. It's recorded in your run history and profile and applied to your leaderboard score:
+
+| Difficulty | Who it's for | What changes | Leaderboard |
+|---|---|---|---|
+| 🌱 **Beginner** | Anyone, no tech background needed | 30% fewer alerts, 50% longer SLAs, gentler stress and energy, fewer curses, longer major-incident timers, and **5 hints per shift** from your mentor | ×0.6 |
+| 🛡 **Standard** | The intended experience | Baseline | ×1.0 |
+| ⚔ **Veteran** | Experienced players | 20% more alerts, tighter SLAs, more real attacks, subtler evidence | ×1.3 |
+| ☠ **Advanced** | Masochists | 40% more alerts, short SLAs, stealthy attackers, a major incident every 4th shift | ×1.6 |
+
+---
+
+## 🏆 Leaderboard
+
+Every finished career gets a **career score** (shifts survived, incidents prevented, major incidents contained, tier reached and accuracy, minus SLA breaches, times the difficulty multiplier). Open **🏆 Leaderboard** from the main menu or pause menu:
+
+- **Official board:** careers approved by the game owner. It shows **when it was last reviewed, in your local timezone**. The full board is loaded from this repo's `leaderboard.json` when you're online, and the top 25 are built into the game for offline play.
+- **Your live standing:** your own careers appear instantly, marked **UNOFFICIAL · PENDING REVIEW**, so you can see where you'd rank. They become official once you submit them and the owner publishes the next review.
+- **Submit a career:** via a pre-filled **GitHub issue**, the **anonymous form** (no account or email needed, once enabled), or by **copying/downloading a submission code**.
+- Filter by difficulty: All · Beginner · Standard · Veteran · Advanced.
+
+![Leaderboard](screenshots/leaderboard.png)
+
+*Maintainers: see [MAINTAINER.md](MAINTAINER.md) for reviewing submissions and publishing the board.*
+
+---
+
 ## 💾 Save & load your profile (move between browsers & devices)
 
 Progress autosaves in your browser. To take it somewhere else, save your **profile** to a file:
@@ -124,7 +156,7 @@ Progress autosaves in your browser. To take it somewhere else, save your **profi
 - **Save:** *⇩ Save Profile* on the main menu, the pause menu (`Esc`), the Profile screen, the days-off screen or the run summary. You can do this mid-shift.
 - **Load:** *⇪ Load Profile* on the main menu, pause menu or Profile screen (on phones this opens the file picker), **or drag and drop the `.json` file anywhere on the game window**. You'll see a preview (seed, tier, shift, stats) before anything is replaced.
 
-A profile file contains your callsign, lifetime stats, run history, achievements, permanent unlocks, Legacy Points and settings, plus any career in progress (including mid-shift state and active cards). Files carry a checksum, so damaged or edited files are flagged before loading.
+A profile file contains your callsign, lifetime stats, run history (with each career's difficulty and score), achievements, permanent unlocks, Legacy Points and settings, plus any career in progress (including mid-shift state and active cards). Files carry a checksum, so damaged or edited files are flagged before loading.
 
 ---
 
@@ -132,9 +164,9 @@ A profile file contains your callsign, lifetime stats, run history, achievements
 
 Open **👤 Profile** from the main menu or pause menu:
 
-- **Overview:** set your callsign (it appears on your desk ID badge) and see lifetime stats: careers finished, shifts survived, alerts handled, accuracy, incidents prevented, major incidents contained, cards taken, Legacy Points earned, your best career, and how your careers ended.
+- **Overview:** change your callsign (it appears on your desk ID badge) and see lifetime stats: careers finished, shifts survived, alerts handled, accuracy, incidents prevented, major incidents contained, cards taken, Legacy Points earned, your best career, and how your careers ended.
 - **Achievements:** 34 achievements across five categories (Career, Skill, Incidents, Cards, Lifetime), each with its unlock date and LP reward. Lifetime achievements show progress bars.
-- **Run history:** your last 100 careers, each with ending, date, seed, shifts, tier, accuracy and LP. Open one to see its full breakdown (handoff grades, certifications, cards, achievements), replay its seed, or delete it.
+- **Run history:** your last 100 careers, each with ending, **difficulty**, career score, date, seed, shifts, tier, accuracy and LP. Open one to see its full breakdown (handoff grades, certifications, cards, achievements), replay its seed, or delete it.
 
 ![Profile overview](screenshots/profile.png)
 
@@ -163,7 +195,7 @@ Progress is saved in `localStorage` and the game pauses itself when you switch t
 - One HTML file with inline CSS and JavaScript
 - Visuals built from CSS, inline SVG and `<canvas>`. No images or fonts are loaded
 - Audio generated with the Web Audio API
-- No dependencies, no build step, no network requests
+- No dependencies and no build step. The only network request is an optional download of `leaderboard.json` when you open the leaderboard; everything else works offline.
 
 ### Code layout (inside `index.html`)
 The script is organized into numbered, commented sections:
@@ -186,6 +218,8 @@ To make the game easier or harder, start with these:
 - `SLA_BASE`: SLA minutes per severity
 - `resources()`: energy drain and stress accumulation
 - `TYPE_W`: the mix of alert types on day vs. night shifts
+- `DIFFS`: difficulty settings and leaderboard multipliers
+- `careerScore()`: the leaderboard scoring formula
 - `CARDS`: shift card effects, stack limits and curse payouts
 - `ACH`: achievements, their LP rewards and lifetime progress goals
 
