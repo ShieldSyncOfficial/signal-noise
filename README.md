@@ -14,9 +14,19 @@ The whole game is **one self-contained HTML file**: no libraries, no build step,
 
 - **Locally:** download `index.html` and double-click it. It works in any modern desktop browser (Chrome, Firefox, Edge).
 - **Online:** if GitHub Pages is enabled for this repo, play at
-  `https://ShieldSyncOfficial.github.io/signal-noise/`
+  `https://<your-username>.github.io/<repo-name>/`
 
 The whole interface scales to fit whatever window it's in, from a small laptop window to a 4K monitor, so nothing gets cut off. Text size can be adjusted in **Settings**.
+
+### 📱 On phones & tablets
+Open the GitHub Pages link in your phone's browser. On narrow or short screens the game switches to a **touch layout**: one screen at a time, with a bottom tab bar for **Queue**, **Case** (investigation) and **Comms**, plus a ☕ coffee button. Badges show open alerts and unread messages, and tapping an alert opens it straight in Case. Portrait and landscape both work.
+
+For a full-screen, app-like experience, use your browser's **Share → Add to Home Screen** (iOS) or **⋮ → Add to Home screen** (Android), or tap **Fullscreen** on the main menu where it's supported.
+
+<p>
+  <img src="screenshots/mobile-queue.png" width="260" alt="Mobile alert queue">
+  <img src="screenshots/mobile-case.png" width="260" alt="Mobile investigation view">
+</p>
 
 ---
 
@@ -103,7 +113,7 @@ Every 5th shift, a major incident (ransomware outbreak, supply-chain compromise,
 | `L` | Desk lamp |
 | `Esc` | Menu |
 
-Everything is also playable with the mouse.
+Everything is also playable with the mouse, or with touch on phones and tablets (no keyboard needed).
 
 ---
 
@@ -112,7 +122,7 @@ Everything is also playable with the mouse.
 Progress autosaves in your browser. To take it somewhere else, use a **save file**:
 
 - **Download:** *⇩ Save File* on the main menu, *Download save file* in the pause menu (`Esc`), or the button on the days-off screen and the run summary. You can do this mid-shift.
-- **Load:** *⇪ Load File* on the main menu or pause menu, **or drag and drop the `.json` file anywhere on the game window**. You'll see a preview (seed, tier, shift, stats) before anything is replaced.
+- **Load:** *⇪ Load File* on the main menu or pause menu (on phones this opens the file picker), **or drag and drop the `.json` file anywhere on the game window**. You'll see a preview (seed, tier, shift, stats) before anything is replaced.
 
 A save file contains your career in progress (including mid-shift state and active cards) plus your permanent unlocks, Legacy Points, achievements and settings. Files carry a checksum, so damaged or edited files are flagged before loading.
 
@@ -156,7 +166,7 @@ The script is organized into numbered, commented sections:
 14. Boss encounters (incident bridge) and mid-shift cards
 15. Tutorial
 16. Audio
-17–20. Rendering, screens, save files, fit-to-window scaling, input and the main loop
+17–20. Rendering, screens, save files, fit-to-window scaling, mobile touch layout, input and the main loop
 
 ### Tuning
 To make the game easier or harder, start with these:

@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04060b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SIGNAL//NOISE">
 <title>SIGNAL//NOISE — A SOC Analyst Roguelike</title>
 <style>
 /* =====================================================================
@@ -384,6 +389,69 @@ body.no-scan .screen::after{display:none}
 /* Reduced motion */
 body.reduced *,body.reduced *::before,body.reduced *::after{animation:none!important;transition:none!important}
 
+/* =====================================================================
+   MOBILE / TOUCH LAYOUT — one screen at a time + bottom tab bar
+   (enabled by fit() on narrow or short viewports: #stage.mobile)
+   ===================================================================== */
+html{touch-action:manipulation;-webkit-text-size-adjust:100%}
+body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+#mtabs{display:none}
+#stage.mobile{--mtab-h:60px}
+#stage.mobile #desk,#stage.mobile .stand,#stage.mobile .logo,#stage.mobile .hud-sep,#stage.mobile #lampGlow{display:none}
+#stage.mobile #sky{height:100%}
+#stage.mobile kbd,#stage.mobile .kbdhint{display:none}
+#stage.mobile #hud{top:max(6px,env(safe-area-inset-top));left:6px;right:6px;height:auto;flex-wrap:wrap;row-gap:6px;column-gap:8px;padding:7px 10px}
+#stage.mobile .clockbox{flex:1 1 auto;gap:6px}
+#stage.mobile #hudClock{font-size:24px;min-width:0}
+#stage.mobile .stats{order:5;flex:1 1 100%;gap:10px}
+#stage.mobile .stat{max-width:none;min-width:0}
+#stage.mobile .stat label{letter-spacing:.06em}
+#stage.mobile .hud-right{gap:5px}
+#stage.mobile .chip.tier,#stage.mobile #btnFF{display:none}
+#stage.mobile #monitors{top:calc(var(--hud-h,96px) + 12px);bottom:calc(var(--mtab-h) + env(safe-area-inset-bottom) + 8px);left:6px;right:6px;gap:0;perspective:none}
+#stage.mobile .mon{display:none;flex:1 1 auto;transform:none!important}
+#stage.mobile .mon.mshow{display:flex}
+#stage.mobile .bezel{border-width:3px}
+#stage.mobile .qrow{padding:10px 8px}
+#stage.mobile .ev{padding:7px 9px}
+#stage.mobile .actions .btn{padding:10px 6px}
+#stage.mobile .tab,#stage.mobile .ctab{padding:8px 10px}
+#stage.mobile #mtabs{display:flex;position:absolute;left:0;right:0;bottom:0;z-index:6;height:calc(var(--mtab-h) + env(safe-area-inset-bottom));padding:0 4px env(safe-area-inset-bottom);
+  background:rgba(6,10,18,.9);backdrop-filter:blur(14px);border-top:1px solid var(--line-2);box-shadow:0 -8px 24px rgba(0,0,0,.45)}
+#mtabs button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:700 11.5px var(--mono);letter-spacing:.08em;color:var(--muted);position:relative;border-radius:10px;margin:5px 2px}
+#mtabs button .mi{font-size:20px;line-height:1}
+#mtabs button.on{color:var(--cyan);background:rgba(62,240,255,.09);box-shadow:inset 0 0 0 1px var(--line-2)}
+#mtabs .mb{position:absolute;top:2px;right:calc(50% - 30px);min-width:18px;padding:0 5px;border-radius:9px;background:var(--magenta);color:#fff;font:800 10.5px/18px var(--mono);text-align:center}
+#mtabs .mb:empty{display:none}
+#mtabs #mCoffee.low{color:var(--amber)}
+#stage.mobile #toasts{top:calc(var(--hud-h,96px) + 14px);right:auto;left:50%;transform:translateX(-50%);align-items:center;width:92%}
+#stage.mobile .toast{text-align:center}
+#stage.mobile .cards{grid-template-columns:1fr;gap:8px}
+#stage.mobile .pcard{min-height:0;flex-direction:row;flex-wrap:wrap;text-align:left;justify-content:flex-start;padding:10px 12px;column-gap:10px}
+#stage.mobile .pcard .pc-ico{font-size:28px}
+#stage.mobile .pcard .pc-desc,#stage.mobile .pcard .pc-foot{flex:1 1 100%}
+#stage.mobile .grid3{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+#stage.mobile .grid2{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+#stage.mobile .title-screen{padding:24px 16px 18px}
+#stage.mobile .title-screen h1{font-size:34px}
+#stage.mobile .title-screen .sub{letter-spacing:.16em}
+#stage.mobile .menu{width:100%;max-width:320px}
+#stage.mobile .panel,#stage.mobile .modal{width:calc(var(--sw) * 96)!important;max-height:calc(var(--sh) * 94)}
+#stage.mobile .panel-h,#stage.mobile .panel-f,#stage.mobile .modal-f{flex-wrap:wrap;padding-left:14px;padding-right:14px}
+#stage.mobile .panel-b,#stage.mobile .modal-b{padding:12px 14px}
+#stage.mobile .modal-f .btn,#stage.mobile .panel-f .btn{padding:10px 12px}
+#stage.mobile .bigstat{font-size:22px}
+#stage.mobile .cause{font-size:24px}
+#stage.mobile .sday{width:40px}
+#stage.mobile .evidence{font-size:12px}
+.ls{display:none}
+#stage.tiny .lf{display:none}#stage.tiny .ls{display:inline}
+/* short (landscape phone): let the whole case view scroll instead of squeezing the evidence */
+#stage.mobile.short #ws{overflow-y:auto}
+#stage.mobile.short .ws-body{flex:0 0 auto;min-height:190px;overflow:visible}
+#stage.mobile.short #hud{row-gap:3px;padding:5px 10px}
+#stage.mobile.short #hudClock{font-size:20px}
+
 /* Mid-shift cards */
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
 .pcard{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:14px 12px;border-radius:12px;border:1px solid var(--line-2);background:linear-gradient(170deg,rgba(255,255,255,.05),rgba(0,0,0,.25));transition:transform .15s,box-shadow .15s,border-color .15s;min-height:220px}
@@ -427,10 +495,10 @@ body.reduced *,body.reduced *::before,body.reduced *::after{animation:none!impor
     </div>
     <div class="hud-sep"></div>
     <div class="stats">
-      <div class="stat" id="st-energy"><label>ENERGY <b>100</b></label><div class="bar"><i style="width:100%"></i></div></div>
-      <div class="stat" id="st-stress"><label>STRESS <b>0</b></label><div class="bar"><i style="width:0%"></i></div></div>
-      <div class="stat" id="st-caf"><label>CAFFEINE <b>0</b></label><div class="bar"><i style="width:0%"></i></div></div>
-      <div class="stat" id="st-rep"><label>REPUTATION <b>50</b></label><div class="bar"><i style="width:50%"></i></div></div>
+      <div class="stat" id="st-energy"><label><span class="lf">ENERGY</span><span class="ls">NRG</span> <b>100</b></label><div class="bar"><i style="width:100%"></i></div></div>
+      <div class="stat" id="st-stress"><label><span class="lf">STRESS</span><span class="ls">STR</span> <b>0</b></label><div class="bar"><i style="width:0%"></i></div></div>
+      <div class="stat" id="st-caf"><label><span class="lf">CAFFEINE</span><span class="ls">CAF</span> <b>0</b></label><div class="bar"><i style="width:0%"></i></div></div>
+      <div class="stat" id="st-rep"><label><span class="lf">REPUTATION</span><span class="ls">REP</span> <b>50</b></label><div class="bar"><i style="width:50%"></i></div></div>
     </div>
     <div class="hud-right">
       <span class="chip tier"><span class="lbl-long">TIER </span><b id="hudTier">T1</b></span>
@@ -450,7 +518,7 @@ body.reduced *,body.reduced *::before,body.reduced *::after{animation:none!impor
         <div id="outageBanner" class="outage-banner hidden">⚠ SIEM DOWN — RAW LOG MODE</div>
         <div class="qhead"><span>SEV</span><span>ALERT</span><span style="text-align:right">SLA</span></div>
         <div id="queue" class="scroll"></div>
-        <div class="scrfoot"><span><kbd>J</kbd>/<kbd>K</kbd></span><span class="sp"></span><span id="qfoot">0 resolved</span></div>
+        <div class="scrfoot"><span class="kbdhint"><kbd>J</kbd>/<kbd>K</kbd></span><span class="sp"></span><span id="qfoot">0 resolved</span></div>
       </div></div>
       <div class="stand"></div>
     </section>
@@ -535,6 +603,15 @@ body.reduced *,body.reduced *::before,body.reduced *::after{animation:none!impor
     </div>
     <div class="item" id="sticky" title="Sticky note"><b>SEED</b><span id="stickySeed">—</span><br>J/K · 1-5<br>F B E · P I D<br>Q ☕ · ␣ pause</div>
   </div>
+
+
+  <!-- ================= MOBILE TAB BAR ================= -->
+  <nav id="mtabs" aria-label="Screens">
+    <button data-mtab="mon1" class="on"><span class="mi">☰</span>QUEUE<b class="mb" id="mQ"></b></button>
+    <button data-mtab="mon2"><span class="mi">⌕</span>CASE</button>
+    <button data-mtab="mon3"><span class="mi">✉</span>COMMS<b class="mb" id="mC"></b></button>
+    <button id="mCoffee" title="Sip coffee"><span class="mi">☕</span><span id="mCofLbl">SIP</span></button>
+  </nav>
 </div>
 
 <div id="overlay" class="hidden"></div>
@@ -1254,7 +1331,7 @@ function startShift() {
     watch: [], outage: null, audit: 0, coffeeBroken: false, bridge: null, bossAt: -1, bossKind: null, mentorUsed: false, phase: 'handoffIn',
     note: null, warn: [], repStart: r.rep, cpStart: r.cp, dec: 0, ok: 0, sla: 0, report: null, unread: 0, cps: CHECKPOINTS.slice(), cpDone: 0,
   };
-  S.ui.sel = null; S.ui.ctab = 'chat'; S.ui.view = null;
+  S.ui.sel = null; S.ui.ctab = 'chat'; S.ui.view = null; S.ui.mpane = 'mon1'; applyPane();
 
   // --- Regular alerts
   const tut = r.tutorial === 0 && idx === 0;
@@ -1901,7 +1978,7 @@ function startBridge() {
   b.objs = b.objs.slice(0, 4).map(o => Object.assign(o, { done: false, tries: 0 }));
   b.total = Math.max(110, Math.round(160 - diff() * 25)); b.left = b.total; b.active = true; b.open = 0; b.won = false;
   s.bridge = b; r.stats.bosses++;
-  S.ui.ctab = 'bridge';
+  S.ui.ctab = 'bridge'; if (S.mobile) setPane('mon3');
   chat('bridge', `MAJOR INCIDENT DECLARED: ${b.title}. You are incident lead for the SOC. ${b.objs.length} objectives, ${b.total} minutes before it's unrecoverable.`);
   Sound.alarm();
   modal({ title: 'MAJOR INCIDENT', ico: '🛑', alarm: true, body: `<p class="mono mg" style="font-size:17px;font-weight:800">${b.title}</p><p>${b.desc}</p><p>An incident bridge is open on <b>Monitor 3</b>. Complete at least <b>3 of 4 objectives</b> before the timer runs out. Wrong answers cost 15 minutes. Alerts keep arriving.</p>`, buttons: [{ label: 'Join the bridge', cls: 'mag' }] });
@@ -1953,7 +2030,7 @@ function drawCards(R, n) {
 function cardHTML(d, i) {
   const n = cardStacks(d.id);
   const foot = d.t === 'curse' ? `+${d.cp} CP now · +${d.lp} LP at run end` : d.instant ? 'Instant effect' : `Stack ${n + 1}/${d.max || 1}`;
-  return `<button class="pcard ${d.t}" data-card="${d.id}"><span class="pc-type">${CARD_TYPE[d.t]}</span><span class="pc-ico">${d.ico}</span><span class="pc-name">${esc(d.name)}</span><span class="pc-desc">${esc(d.desc)}</span><span class="pc-foot">${foot}${i != null ? ' · press ' + (i + 1) : ''}</span></button>`;
+  return `<button class="pcard ${d.t}" data-card="${d.id}"><span class="pc-type">${CARD_TYPE[d.t]}</span><span class="pc-ico">${d.ico}</span><span class="pc-name">${esc(d.name)}</span><span class="pc-desc">${esc(d.desc)}</span><span class="pc-foot">${foot}${i != null ? '<span class="kbdhint"> · press ' + (i + 1) + '</span>' : ''}</span></button>`;
 }
 function offerCards() {
   const r = S.run, s = r.shift, k = s.cpDone;
@@ -1996,11 +2073,11 @@ function showCardsModal() {
    15. TUTORIAL — mentor-guided first shift
    ===================================================================== */
 const TUT = [
-  { msg: "Welcome to the floor! I'm Ravi — I'll mentor you through your first shift. Monitor 1 (left) is the SIEM queue. Every alert has a severity and an SLA timer; blow the SLA and your reputation takes a hit. Click an alert (or press J/K) to select it.", hl: '#mon1', wait: 'select' },
+  { msg: "Welcome to the floor! I'm Ravi — I'll mentor you through your first shift. The SIEM queue is Monitor 1 (left), or the QUEUE tab on a phone. Every alert has a severity and an SLA timer; blow the SLA and your reputation takes a hit. Click or tap an alert (or press J/K) to select it.", hl: '#mon1', wait: 'select' },
   { msg: "Good. What you see now is triage — that's free. To dig deeper, open an evidence tab (or press 1–5). Queries cost game time and energy, so be deliberate.", hl: '#ws .tabs', wait: 'tab' },
   { msg: "Click any line you think matters to inspect it (2 min each). RED = malicious indicator, GREEN = benign context like an approved change. If every line is clean, it's probably a false positive.", hl: '#ws .ws-body', wait: 'inspect' },
   { msg: "Now make the call. F = False Positive (detection error). B = Benign True Positive (real activity, but authorised). E = Escalate to Tier 2/IR. Or contain it yourself: P block IP · I isolate host · D disable account — containment must match the threat. Hint: Office spawning hidden PowerShell is never good news.", hl: '#ws .actions', wait: 'decide' },
-  { msg: "Feedback arrives later in chat — just like the real job. True positives you miss come back to haunt you on later shifts. Energy drains over the shift: click the mug or press Q for coffee. Caffeine helps now and crashes later.", hl: '#mug', wait: 'sip' },
+  { msg: "Feedback arrives later in chat — just like the real job. True positives you miss come back to haunt you on later shifts. Energy drains over the shift: click the mug (☕ in the tab bar on a phone) or press Q for coffee. Caffeine helps now and crashes later.", hl: '#mug', wait: 'sip' },
   { msg: "That's the job. Space pauses, T fast-forwards when it's quiet. At 17:45 you'll write a handoff for the next shift: include open tickets, real IOCs and system warnings, and skip the chit-chat. Good luck out there.", hl: null, wait: null },
 ];
 function tutShow() {
@@ -2018,7 +2095,8 @@ function skipTut() { const r = S.run; r.tutorial = -1; S.meta.tutorialDone = tru
 function applyTutHL() {
   $$('.tut-hl').forEach(e => e.classList.remove('tut-hl'));
   const r = S.run; if (!r || r.tutorial < 0) return;
-  const h = TUT[r.tutorial] && TUT[r.tutorial].hl; if (!h) return;
+  let h = TUT[r.tutorial] && TUT[r.tutorial].hl; if (!h) return;
+  if (S.mobile) h = { '#mug': '#mCoffee', '#mon1': '[data-mtab="mon1"]' }[h] || h;
   const el = $(h); if (el) el.classList.add('tut-hl');
 }
 
@@ -2060,7 +2138,7 @@ function chat(who, text, html) {
   const s = sh(); if (!s) return;
   s.chat.push({ who, text: html ? text : esc(text), t: s.t });
   if (s.chat.length > 140) s.chat.shift();
-  if (S.ui.ctab !== 'chat') s.unread = (s.unread || 0) + 1;
+  if (S.ui.ctab !== 'chat' || (S.mobile && S.ui.mpane !== 'mon3')) s.unread = (s.unread || 0) + 1;
   if (who === 'mentor' || who === 'mgr') Sound.blip(740);
   S.ui.dc = true;
 }
@@ -2089,6 +2167,12 @@ function renderHUD() {
   $('#hudShiftNo').textContent = r.shiftCount + (r.phase === 'shift' && s.phase !== 'report' ? 1 : 0);
   $('#hudCP').textContent = r.cp;
   $('#hudCardN').textContent = (r.cards || []).reduce((t, c) => t + c.n, 0);
+  if (S.mobile) {
+    const n = openAlerts().length; $('#mQ').textContent = n ? n : '';
+    $('#mC').textContent = s.bridge && s.bridge.active ? '!' : (s.unread ? s.unread : '');
+    $('#mCofLbl').textContent = r.mug <= 0 ? 'REFILL' : 'SIP ' + r.mug + '%';
+    $('#mCoffee').classList.toggle('low', r.energy < 30);
+  }
   $('#btnPause').textContent = S.paused ? '▶' : '❚❚';
   $('#btnFF').classList.toggle('primary', S.ff); $('#btnFF').classList.toggle('ghost', !S.ff);
   $('#btnSound').textContent = S.meta.settings.sound ? '🔊' : '🔇';
@@ -2211,7 +2295,7 @@ function renderWS() {
   else body = lines.map((l, i) => {
     const ins = a.insp[tab + i] || closed;
     return `<div class="ev ${l.k} ${ins ? 'insp' : ''} ${l.dyn ? 'dyn' : ''}" data-act="insp" data-i="${i}" style="${l.i ? 'padding-left:' + (8 + l.i * 14) + 'px' : ''}">${esc(l.x)}${ins && l.n ? `<span class="note">${l.k === 'b' ? '⚠ ' : l.k === 'c' ? '✓ ' : '· '}${esc(l.n)}</span>` : ''}</div>`;
-  }).join('') + (closed ? '' : '<div class="muted" style="font-size:12.5px;margin-top:6px">Click a line to inspect it (~' + Math.round(2 * timeMult()) + ' min).</div>');
+  }).join('') + (closed ? '' : '<div class="muted" style="font-size:12.5px;margin-top:6px">Click or tap a line to inspect it (~' + Math.round(2 * timeMult()) + ' min).</div>');
   let nb = 0, nc = 0;
   TABS.forEach(([t]) => allLines(a, t).forEach((l, i) => { if (a.insp[t + i]) { if (l.k === 'b') nb++; if (l.k === 'c') nc++; } }));
   const pos = clamp(50 + nb * 17 - nc * 17, 4, 96);
@@ -2247,7 +2331,7 @@ function renderComms() {
   S.ui.dc = false;
   const s = sh(), el = $('#comms');
   if (!s) { $('#ctabs').innerHTML = ''; el.innerHTML = '<div class="qempty"><b>COMMS IDLE</b>No active shift.</div>'; return; }
-  if (S.ui.ctab === 'chat') s.unread = 0;
+  if (S.ui.ctab === 'chat' && (!S.mobile || S.ui.mpane === 'mon3')) s.unread = 0;
   const tabs = [['chat', 'CHAT', s.unread], ['tickets', 'TICKETS', 0], ['handoff', 'HANDOFF', 0]];
   if (s.bridge) tabs.splice(1, 0, ['bridge', 'BRIDGE', 0]);
   $('#ctabs').innerHTML = tabs.map(([k, l, n]) => `<button class="ctab ${S.ui.ctab === k ? 'on' : ''} ${k === 'bridge' && s.bridge.active && S.ui.ctab !== 'bridge' ? 'flash' : ''}" data-ctab="${k}">${l}${n ? `<span class="badge">${n}</span>` : ''}</button>`).join('');
@@ -2344,6 +2428,7 @@ function showStart() {
       <button class="btn lg" data-go="unlocks">◈ UNLOCKS <span class="muted">(${S.meta.lp} LP)</span></button>
       <button class="btn lg" data-go="settings">⚙ SETTINGS</button>
       <button class="btn lg" data-go="howto">? HOW TO PLAY</button>
+      ${document.documentElement.requestFullscreen ? '<button class="btn lg ghost" data-go="fullscreen">⛶ FULLSCREEN</button>' : ''}
     </div>
     <div class="foot-note">Runs: ${S.meta.runs} · Best: ${S.meta.best.shifts} shifts · Highest tier: ${TIERS[S.meta.best.tier]}${Store.ok ? '' : '<br><span class="am">Storage unavailable — progress will not be saved.</span>'}</div>
   </div></div>`);
@@ -2395,6 +2480,7 @@ function showHowTo(back = 'menu') {
     <h3>RESOURCES</h3><ul><li><b>Energy</b> drains over time. When it's low, queries take 50% longer. Coffee (<kbd>Q</kbd>, refill <kbd>R</kbd>) and breaks restore it.</li><li><b>Caffeine</b> gives energy now and a crash later, and high caffeine raises stress.</li><li><b>Stress</b> rises with backlog, mistakes and night work. It falls with rest and days off.</li><li><b>Reputation</b> rises with accurate calls and good handoffs, and falls with SLA breaches and mistakes.</li></ul>
     <h3>MAJOR INCIDENTS</h3><p>Every 5th shift a major incident opens a timed bridge on Monitor 3. Solve at least 3 of 4 objectives before time runs out.</p>
     <h3>DAYS OFF & META</h3><p>On days off, spend Career Points (CP) on rest, training and certifications. Certifications plus reputation unlock promotions. When a run ends you earn Legacy Points for permanent perks and tools.</p>
+    <h3>ON A PHONE OR TABLET</h3><p>Use the tab bar at the bottom to switch between <b>Queue</b>, <b>Case</b> (the investigation workspace) and <b>Comms</b>. Badges show open alerts and unread messages. Tapping an alert opens it in Case. The ☕ button drinks coffee, ❚❚ pauses, 🃏 shows your cards, and MENU opens saves and settings. Landscape gives more room. For full screen, use "Add to Home Screen" or the Fullscreen button where your browser supports it.</p>
     <h3>KEYS</h3><p><kbd>J</kbd>/<kbd>K</kbd> queue · <kbd>1</kbd>–<kbd>5</kbd> evidence tabs · <kbd>F</kbd> <kbd>B</kbd> <kbd>E</kbd> <kbd>P</kbd> <kbd>I</kbd> <kbd>D</kbd> decide · <kbd>Q</kbd> sip · <kbd>R</kbd> refill · <kbd>Space</kbd> pause · <kbd>T</kbd> fast-forward · <kbd>M</kbd> sound · <kbd>L</kbd> lamp · <kbd>Esc</kbd> menu</p>
   </div><div class="panel-f"><button class="btn primary" data-go="${back}" data-primary="1">Got it</button></div></div>`);
 }
@@ -2408,6 +2494,7 @@ function showPauseMenu() {
     <button class="btn lg" data-go="cards">🃏 ACTIVE CARDS (${(S.run.cards || []).reduce((t, c) => t + c.n, 0)})</button>
     <button class="btn lg" data-go="download">⇩ DOWNLOAD SAVE FILE</button>
     <button class="btn lg" data-go="load2">⇪ LOAD SAVE FILE</button>
+    ${document.documentElement.requestFullscreen ? '<button class="btn lg" data-go="fullscreen">⛶ TOGGLE FULLSCREEN</button>' : ''}
     <button class="btn lg" data-go="savequit">⏏ SAVE & QUIT TO MENU</button>
     <button class="btn danger lg" data-go="resign">✖ RESIGN (END RUN)</button>
   </div></div></div>`);
@@ -2623,14 +2710,37 @@ function bindDragDrop() {
    18c. FIT-TO-WINDOW — lay out at a logical size, then scale the stage
    ===================================================================== */
 const DESIGN_W = 1200, DESIGN_H = 675, MIN_W = 1100, MIN_H = 640;
+/* Mobile: show one monitor at a time, switched from the bottom tab bar. */
+function setPane(p) { if (S.ui.mpane === p) return; S.ui.mpane = p; applyPane(); if (p === 'mon3') { S.ui.dc = true; } }
+function applyPane() {
+  const p = S.ui.mpane || 'mon1';
+  ['mon1', 'mon2', 'mon3'].forEach(id => { const el = $('#' + id); if (el) el.classList.toggle('mshow', p === id); });
+  $$('#mtabs [data-mtab]').forEach(b => b.classList.toggle('on', b.dataset.mtab === p));
+  applyTutHL();
+}
+function measureHud() { const h = $('#hud'); if (h) document.documentElement.style.setProperty('--hud-h', h.offsetHeight + 'px'); }
+function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => toast('Fullscreen not available here', 'warn'));
+    else toast('Fullscreen not supported — try "Add to Home Screen"', 'warn');
+  } catch (e) { toast('Fullscreen not available here', 'warn'); }
+}
 function fit() {
   const W = Math.max(200, window.innerWidth), H = Math.max(150, window.innerHeight);
   const pref = TEXT_SCALES[S.meta.settings.text] || 1;
-  let s = Math.min(W / DESIGN_W, H / DESIGN_H) * pref;
-  s = Math.min(s, W / MIN_W, H / MIN_H);          // never squeeze the layout below its minimum logical size
+  const mobile = W < 900 || H < 560;              // phones & small tablets get the touch layout
+  let s;
+  if (mobile) { s = clamp(Math.min(W / 420, H / 760), .78, 1.3) * pref; s = Math.min(s, W / 340, H / 380); }
+  else { s = Math.min(W / DESIGN_W, H / DESIGN_H) * pref; s = Math.min(s, W / MIN_W, H / MIN_H); } // never squeeze below the minimum logical size
+  S.mobile = mobile;
   const lw = W / s, lh = H / s, st = $('#stage');
   st.style.width = lw + 'px'; st.style.height = lh + 'px'; st.style.transform = `scale(${s})`;
   st.classList.toggle('narrow', lw < 1330);
+  st.classList.toggle('mobile', mobile);
+  st.classList.toggle('short', mobile && lh < 560);
+  st.classList.toggle('tiny', lw < 520);
+  applyPane(); measureHud();
   document.documentElement.style.setProperty('--sw', (lw / 100) + 'px');
   document.documentElement.style.setProperty('--sh', (lh / 100) + 'px');
   S.scale = s;
@@ -2640,7 +2750,7 @@ function fit() {
 /* =====================================================================
    19. INPUT — mouse delegation & keyboard shortcuts
    ===================================================================== */
-function selectAlert(id) { S.ui.sel = id; S.ui.view = null; S.ui.tab = 'logs'; tut('select'); dirty(1, 1, 0); Sound.click(); }
+function selectAlert(id) { S.ui.sel = id; S.ui.view = null; S.ui.tab = 'logs'; if (S.mobile) setPane('mon2'); tut('select'); dirty(1, 1, 0); Sound.click(); }
 function moveSel(dir) {
   const ids = queueOrder(); if (!ids.length) return;
   let i = ids.indexOf(S.ui.sel); i = i < 0 ? 0 : clamp(i + dir, 0, ids.length - 1);
@@ -2660,7 +2770,7 @@ function bindInput() {
     else if (act === 'opentab') openTab(a, el.dataset.tab);
     else if (act === 'insp') inspect(a, S.ui.tab, +el.dataset.i);
     else if (act === 'dec') decide(a, el.dataset.v);
-    else if (act === 'back') { S.ui.view = null; dirty(0, 1, 0); }
+    else if (act === 'back') { S.ui.view = null; if (S.mobile) setPane('mon1'); dirty(0, 1, 0); }
     else if (act === 'break') takeBreak();
     else if (act === 'sip') sip();
     renderWS();
@@ -2668,7 +2778,7 @@ function bindInput() {
   $('#ctabs').addEventListener('click', e => { const t = e.target.closest('[data-ctab]'); if (t) { S.ui.ctab = t.dataset.ctab; dirty(0, 0, 1); renderComms(); } });
   $('#comms').addEventListener('click', e => {
     if (e.target.closest('[data-act="skiptut"]')) { skipTut(); return; }
-    const tk = e.target.closest('[data-view]'); if (tk) { S.ui.view = tk.dataset.view; dirty(0, 1, 0); return; }
+    const tk = e.target.closest('[data-view]'); if (tk) { S.ui.view = tk.dataset.view; if (S.mobile) setPane('mon2'); dirty(0, 1, 0); return; }
     const an = e.target.closest('[data-ans]'); if (an) { const [i, j] = an.dataset.ans.split(':').map(Number); answerObj(i, j); renderComms(); return; }
     const ob = e.target.closest('[data-obj]'); if (ob && sh().bridge) { const b = sh().bridge; const i = +ob.dataset.obj; if (!b.objs[i].done) { b.open = i; renderComms(); } }
   });
@@ -2690,6 +2800,7 @@ function bindInput() {
       case 'load2': showLoadScreen('pause'); break;
       case 'download': downloadSave(); break;
       case 'cards': closeOverlay(); showCardsModal(); break;
+      case 'fullscreen': toggleFullscreen(); break;
       case 'unlocks': showUnlocks(); break;
       case 'settings': showSettings('menu'); break;
       case 'settings2': showSettings('pause'); break;
@@ -2716,6 +2827,9 @@ function bindInput() {
   $('#btnFF').addEventListener('click', () => { if (isLive()) { S.ff = !S.ff; renderHUD(); } });
   $('#btnSound').addEventListener('click', toggleSound);
   $('#hudCards').addEventListener('click', showCardsModal);
+  $('#mtabs').addEventListener('click', e => { const b = e.target.closest('[data-mtab]'); if (b) { setPane(b.dataset.mtab); Sound.click(); dirty(); } });
+  $('#mCoffee').addEventListener('click', () => { if (S.run && S.run.mug <= 0) refill(); else sip(); });
+  if (window.ResizeObserver) new ResizeObserver(measureHud).observe($('#hud'));
   $('#btnMenu').addEventListener('click', () => { if (S.run && !S.run.ended && S.modal === 0) showPauseMenu(); else if (!S.run) showStart(); });
   window.addEventListener('resize', fit);
   // Pause when the tab is hidden; persist on close so a refresh never loses the shift.
