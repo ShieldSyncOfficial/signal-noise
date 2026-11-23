@@ -188,11 +188,12 @@ create or replace function public.sn_post_run(p_token uuid, p_run jsonb) returns
 language plpgsql security definer set search_path = public as $$
 declare v_pid uuid := sn_auth(p_token); v_id text := left(coalesce(p_run->>'id', ''), 32);
         v_diff text := coalesce(p_run->>'diff', 'standard'); v_status text := coalesce(p_run->>'status', 'active');
-        n int;
+        v_when timestamptz; n int;
 begin
   if v_id !~ '^[A-Za-z0-9_-]{6,32}$' then return jsonb_build_object('error', 'bad_run'); end if;
   if v_diff not in ('beginner', 'standard', 'veteran', 'advanced') then v_diff := 'standard'; end if;
   if v_status not in ('active', 'ended') then v_status := 'active'; end if;
+  begin v_when := least(now(), coalesce((p_run->>'ended_at')::timestamptz, now())); exception when others then v_when := now(); end;
   insert into runs as r (id, player_id, diff, seed, status, cause, shifts, tier, acc, decisions, prevented, boss_won, sla, grade_pts, last_grade, started_at, updated_at)
   values (v_id, v_pid, v_diff, left(p_run->>'seed', 24), v_status,
           case when p_run->>'cause' in ('burnout', 'terminated', 'breach', 'retired', 'resigned') then p_run->>'cause' end,
@@ -205,7 +206,8 @@ begin
           least(greatest(coalesce((p_run->>'sla')::int, 0), 0), 50000),
           least(greatest(coalesce((p_run->>'grade_pts')::int, 0), 0), 100 * 500),
           left(p_run->>'last_grade', 2),
-          coalesce((p_run->>'started_at')::timestamptz, now()), now())
+          least(now(), coalesce((p_run->>'started_at')::timestamptz, now())),
+          case when v_status = 'ended' then v_when else now() end)
   on conflict (id) do update set
           status = excluded.status, cause = excluded.cause, shifts = excluded.shifts, tier = excluded.tier,
           acc = excluded.acc, decisions = excluded.decisions, prevented = excluded.prevented,
@@ -216,8 +218,10 @@ begin
   return jsonb_build_object('ok', n > 0);
 end $$;
 
+drop function if exists public.sn_leaderboard(text, text, int, uuid);
 -- p_kind: 'runs' (every run, live) or 'careers' (finished runs only). Best entry per player.
-create or replace function public.sn_leaderboard(p_kind text, p_diff text default null, p_limit int default 100, p_player uuid default null) returns jsonb
+-- v1.0.0: 'me' now carries your full row, so it can be shown under the top 15.
+create or replace function public.sn_leaderboard(p_kind text, p_diff text default null, p_limit int default 15, p_player uuid default null) returns jsonb
 language sql security definer set search_path = public as $$
   with base as (
     select r.*, p.username, p.bot from runs r join players p on p.id = r.player_id
@@ -228,18 +232,21 @@ language sql security definer set search_path = public as $$
     select distinct on (player_id) * from base order by player_id, score desc, updated_at asc
   ), ranked as (
     select *, rank() over (order by score desc, updated_at asc) as rk from best
-  )
-  select jsonb_build_object(
-    'rows', coalesce((select jsonb_agg(jsonb_build_object(
+  ), shaped as (
+    select rk, player_id, jsonb_build_object(
               'id', id, 'player_id', player_id, 'name', username, 'bot', bot, 'diff', diff, 'status', status, 'cause', cause,
               'shifts', shifts, 'tier', tier, 'acc', acc, 'prevented', prevented, 'boss_won', boss_won, 'last_grade', last_grade,
-              'score', score, 'rank', rk, 'updated_at', updated_at, 'started_at', started_at) order by rk)
-              from (select * from ranked order by rk limit least(greatest(coalesce(p_limit, 100), 1), 200)) t), '[]'::jsonb),
+              'score', score, 'rank', rk, 'updated_at', updated_at, 'started_at', started_at) as j
+      from ranked
+  )
+  select jsonb_build_object(
+    'rows', coalesce((select jsonb_agg(j order by rk) from (select * from shaped order by rk limit least(greatest(coalesce(p_limit, 15), 1), 200)) t), '[]'::jsonb),
     'total', (select count(*) from ranked),
-    'me', (select jsonb_build_object('rank', rk, 'score', score, 'id', id) from ranked where player_id = p_player),
+    'me', (select j from shaped where player_id = p_player),
     'updated_at', (select max(updated_at) from base),
     'now', now());
 $$;
+
 
 -- ---------------------------------------------------------------- permissions
 revoke execute on function public.sn_auth(uuid) from public, anon, authenticated;
@@ -251,24 +258,18 @@ grant execute on function
   to anon, authenticated;
 
 -- ---------------------------------------------------------------- sample (BOT) entries
--- Ten sample scores so the boards aren't empty at launch. Delete with:
+-- Five sample scores so the boards aren't empty at launch. Delete with:
 --   delete from players where bot;
 insert into players (username, bot) values
-  ('BOT-Sentinel', true), ('BOT-Cipher', true), ('BOT-Nightjar', true), ('BOT-Halogen', true), ('BOT-Packet', true),
-  ('BOT-Lantern', true), ('BOT-Grepster', true), ('BOT-Honeypot', true), ('BOT-Rookie', true), ('BOT-Patch', true)
+  ('BOT-Sentinel', true), ('BOT-Cipher', true), ('BOT-Halogen', true), ('BOT-Grepster', true), ('BOT-Patch', true)
 on conflict do nothing;
 insert into runs (id, player_id, diff, seed, status, cause, shifts, tier, acc, decisions, prevented, boss_won, sla, grade_pts, last_grade, started_at, updated_at)
 select v.id, p.id, v.diff, v.seed, 'ended', v.cause, v.shifts, v.tier, v.acc, v.decisions, v.prevented, v.boss_won, v.sla, v.gp, v.lg, v.ts - interval '3 days', v.ts
 from (values
   ('bot01', 'BOT-Sentinel', 'advanced', 'BOT-SENT01', 'retired',    31, 4, 91, 820, 22, 7, 14, 2300, 'A', timestamptz '2026-11-19 22:41+00'),
   ('bot02', 'BOT-Cipher',   'veteran',  'BOT-CIPH02', 'breach',     26, 3, 89, 640, 17, 5, 11, 1750, 'B', timestamptz '2026-11-18 03:12+00'),
-  ('bot03', 'BOT-Nightjar', 'advanced', 'BOT-NIGH03', 'breach',     15, 2, 86, 410, 11, 3, 18,  900, 'C', timestamptz '2026-11-16 07:05+00'),
   ('bot04', 'BOT-Halogen',  'standard', 'BOT-HALO04', 'burnout',    24, 3, 92, 540, 15, 4,  9, 1700, 'A', timestamptz '2026-11-17 15:30+00'),
-  ('bot05', 'BOT-Packet',   'veteran',  'BOT-PACK05', 'burnout',    14, 2, 84, 330,  9, 2, 12,  800, 'C', timestamptz '2026-11-14 11:20+00'),
-  ('bot06', 'BOT-Lantern',  'standard', 'BOT-LANT06', 'terminated', 13, 1, 88, 270,  7, 2,  6,  750, 'B', timestamptz '2026-11-13 21:02+00'),
   ('bot07', 'BOT-Grepster', 'beginner', 'BOT-GREP07', 'burnout',    20, 2, 95, 300, 10, 3,  2, 1600, 'A', timestamptz '2026-11-15 19:48+00'),
-  ('bot08', 'BOT-Honeypot', 'standard', 'BOT-HONE08', 'breach',      8, 1, 81, 160,  4, 1,  7,  350, 'C', timestamptz '2026-11-12 13:44+00'),
-  ('bot09', 'BOT-Rookie',   'beginner', 'BOT-ROOK09', 'burnout',     9, 1, 90, 120,  3, 1,  3,  560, 'B', timestamptz '2026-11-11 17:15+00'),
   ('bot10', 'BOT-Patch',    'beginner', 'BOT-PATC10', 'resigned',    4, 0, 76,  55,  1, 0,  4,  130, 'D', timestamptz '2026-11-10 09:30+00')
 ) as v(id, name, diff, seed, cause, shifts, tier, acc, decisions, prevented, boss_won, sla, gp, lg, ts)
 join players p on p.username = v.name

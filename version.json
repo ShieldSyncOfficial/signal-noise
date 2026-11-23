@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "released": "2026-11-23",
+  "notes": [
+    "Leaderboards now show the top 15, with your own best row underneath if you're outside it.",
+    "Careers you finished before accounts existed are posted to the leaderboard automatically.",
+    "Only 5 sample BOT entries remain.",
+    "The game checks for updates every time it opens, and there's a Check for updates button.",
+    "Add the game to your home screen as an app, with its new icon.",
+    "Load/Save Profile moved into the Profile menu."
+  ]
+}

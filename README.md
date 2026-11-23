@@ -12,9 +12,8 @@ The whole game is **one self-contained HTML file**: no libraries and no build st
 
 ## ▶ Play
 
-- **Locally:** download `index.html` and double-click it. It works in any modern desktop browser (Chrome, Firefox, Edge).
-- **Online:** if GitHub Pages is enabled for this repo, play at
-  `https://shieldsyncofficial.github.io/signal-noise/`
+- **Online (recommended):** **https://shieldsyncofficial.github.io/signal-noise/**
+- **Locally:** download `index.html` and double-click it. Accounts, cloud saves and leaderboards still work from a downloaded copy if you're online, but it won't update itself and can't be added to your home screen. Use the link above for that.
 
 **First launch:** create an analyst account (a unique **username** + **4-digit passcode**) or **log in** with an existing one, then go through a short, required **walkthrough** (about 5 minutes) that explains everything in plain language, with hands-on practice, before your first career. You can replay it any time from **🎓 Tutorial** on the main menu. **? How to Play** is the quick reference.
 
@@ -25,7 +24,8 @@ The whole interface scales to fit whatever window it's in, from a small laptop w
 ### 📱 On phones & tablets
 Open the GitHub Pages link in your phone's browser. On narrow or short screens the game switches to a **touch layout**: one screen at a time, with a bottom tab bar for **Queue**, **Case** (investigation) and **Comms**, plus a ☕ coffee button. Badges show open alerts and unread messages, and tapping an alert opens it straight in Case. Portrait and landscape both work.
 
-For a full-screen, app-like experience, use your browser's **Share → Add to Home Screen** (iOS) or **⋮ → Add to Home screen** (Android), or tap **Fullscreen** on the main menu where it's supported.
+### 📲 Add it to your home screen
+Tap **📲 Add to Home Screen** on the main menu for step-by-step help. On Chrome/Edge it shows the install prompt directly; on iPhone use **Share → Add to Home Screen**. It then opens full-screen with its own icon like an app. You still need an internet connection to start it, and it checks for updates every time it opens.
 
 <p>
   <img src="screenshots/mobile-queue.png" width="260" alt="Mobile alert queue">
@@ -153,7 +153,8 @@ With an online account, your scores post **automatically**. There's no submittin
 
 - **🏃 Runs (live):** every run, including unfinished ones (marked **● LIVE RUN**). Your run's total is posted each time you **clock out of a shift**.
 - **🏆 Careers:** finished runs with their final score.
-- Each board shows every analyst's **best** entry, filterable by difficulty, and when the leaderboard last changed (in your local timezone).
+- Each board shows the **top 15** analysts' **best** entries, filterable by difficulty. If you're outside the top 15, your own best row appears underneath. Five sample **BOT** entries are there for scale, and when the leaderboard last changed (in your local timezone).
+- **Careers from before accounts existed** (or played offline) are posted automatically the next time you log in or open the game.
 - The leaderboard refreshes **every time you open it**, every 30 seconds while it's open, and whenever you press **⟳ Refresh**.
 - **Score** = shifts survived, incidents prevented, major incidents contained, tier, accuracy, shift grades and a retirement bonus, minus SLA breaches, times the difficulty multiplier. The server calculates it.
 
@@ -169,7 +170,7 @@ With an online account, your scores post **automatically**. There's no submittin
 - Progress saves to the cloud automatically (after each shift, at the end of a run, and about once a minute while playing). If you're offline, uploads wait and go through when you reconnect.
 - **Profile → Log out** saves to the cloud and clears the device, so someone else can use it. **Change passcode** is there too. Forgot your passcode? Ask the game owner to reset it.
 - After 5 wrong passcodes an account locks for 15 minutes. A 4-digit passcode is light protection, so don't reuse a real PIN.
-- **⇩ Save Profile / ⇪ Load Profile** still download and restore a backup file (drag and drop works too). Files never contain your login.
+- **Profile → ⇩ Save Profile / ⇪ Load Profile** still download and restore a backup file (drag and drop works too). Files never contain your login.
 
 ---
 ## 👤 Profile, achievements & run history
@@ -208,6 +209,7 @@ Progress is saved in `localStorage` and the game pauses itself when you switch t
 - Visuals built from CSS, inline SVG and `<canvas>`. No images or fonts are loaded
 - Audio generated with the Web Audio API
 - No dependencies and no build step. Online features talk to Supabase's REST API directly (no SDK); without it, everything works offline.
+- `manifest.webmanifest` + `icons/` make it installable to a home screen; `version.json` drives the update check
 - `supabase-setup.sql` creates the backend: tables, security rules and server-side functions.
 
 ### Code layout (inside `index.html`)
@@ -234,9 +236,16 @@ To make the game easier or harder, start with these:
 - `DIFFS`: difficulty settings and leaderboard multipliers
 - `careerScore()`: the leaderboard scoring formula (mirrored by the server trigger)
 - `GRADE_W` / `GRADE_PTS`: shift-grade weighting and points
-- `ONLINE`: your Supabase URL and public key
+- `ONLINE`: the Supabase URL and public key
+- `GAME_VERSION`: the version number (keep it in step with `version.json`)
 - `CARDS`: shift card effects, stack limits and curse payouts
 - `ACH`: achievements, their LP rewards and lifetime progress goals
+
+---
+
+## 🆕 Versions & updates
+
+The version is shown at the bottom of the main menu and in **Settings**. Every time the game opens it compares itself with [`version.json`](version.json) in this repo; if there's a newer one, a banner offers **What's new** and **Update now** (it saves your progress first, then reloads). **⟳ Check for updates** does the same on demand.
 
 ---
 

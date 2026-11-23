@@ -10,7 +10,7 @@ SIGNAL//NOISE uses **Supabase** (free tier) for:
   - **Runs:** every run's total, posted automatically each time a player clocks out of a shift (unfinished runs included, marked LIVE)
   - **Careers:** finished runs with their final score
 
-Until you complete the setup below, the game works fully **offline**: usernames are saved per device and the leaderboard shows the 10 sample BOT scores plus that device's own scores.
+Until you complete the setup below, the game works fully **offline**: usernames are saved per device and the leaderboard shows the 5 sample BOT scores plus that device's own scores.
 
 ---
 
@@ -23,13 +23,13 @@ Until you complete the setup below, the game works fully **offline**: usernames 
 ### 2. Create the database
 1. In your project, open **SQL Editor → New query**.
 2. Open `supabase-setup.sql` from this repo, copy **all** of it, paste it in, and click **Run**.
-3. You should see *"Success. No rows returned"*. The script creates the tables, security rules, the 10 sample BOT scores and the functions the game calls. It's safe to run again later.
+3. You should see *"Success. No rows returned"*. The script creates the tables, security rules, the 5 sample BOT scores and the functions the game calls. It's safe to run again later.
 
 ### 3. Connect the game
 1. In Supabase open **Project Settings → API** (or **API Keys**) and copy:
    - the **Project URL** (looks like `https://abcdefghijkl.supabase.co`)
    - the **anon / publishable** key (a long public key)
-2. Edit `index.html` on GitHub, search for `const ONLINE`, and fill in both lines:
+2. *(Already done: `index.html` ships with your project's URL and publishable key filled in. Only change this if you move to a different Supabase project.)* Edit `index.html`, search for `const ONLINE`, and fill in both lines:
    ```js
    const ONLINE = {
      url: 'https://abcdefghijkl.supabase.co',
@@ -39,6 +39,33 @@ Until you complete the setup below, the game works fully **offline**: usernames 
 3. Commit. After GitHub Pages redeploys (1–2 minutes), first-time players see **New analyst / Log in**.
 
 > **Is the key safe to publish?** Yes. That key is designed to be public. The setup script switches on Row Level Security and blocks every table, so the key can only call the game's `sn_*` functions, and those check each player's login token. **Never** put the `service_role` / secret key in the game.
+
+---
+
+## Updating an existing database
+
+Each release that changes the backend comes with a `supabase-update-vX.Y.Z.sql` file. Run it once in **SQL Editor** (paste all of it → **Run**). Every update script is safe to run more than once.
+
+- **v1.0.0** (`supabase-update-v1.0.0.sql`): trims the sample bots to 5, returns the top 15 plus the player's own row, and accepts the original finish date of older careers being backfilled. Players' scores are untouched.
+
+(`supabase-setup.sql` is always the full, current version, for brand-new projects.)
+
+---
+
+## Releasing a new version
+
+1. Make your changes to `index.html`.
+2. In `index.html`, bump `const GAME_VERSION = '1.0.0'` (e.g. to `1.0.1`; use `MAJOR.MINOR.PATCH`).
+3. In `version.json`, set the same `version`, today's `released` date, and a few short `notes` lines (they appear in the **What's new** popup).
+4. Commit both files together. Once GitHub Pages redeploys (1–2 minutes), anyone opening an older copy sees the update banner.
+
+If `version.json` is ahead of `index.html`, players get stuck seeing the banner, so always bump both.
+
+---
+
+## Home-screen install
+
+`manifest.webmanifest` and the `icons/` folder let players add the game to their home screen. Both must stay next to `index.html`. `icons/logo.svg` is the source artwork; the PNGs are exported from it. There's no offline caching: the installed app loads the latest version from GitHub Pages each time.
 
 ---
 
