@@ -303,7 +303,7 @@ body.no-scan .screen::after{display:none}
 .panel-b{padding:18px 22px;overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(62,240,255,.25) transparent}
 .panel-f{padding:12px 22px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;align-items:center}
 .panel-f .sp{flex:1}
-.title-screen{text-align:center;padding:34px 30px 26px}
+.title-screen{text-align:center;padding:34px 30px 26px;overflow:auto}
 .title-screen h1{font:900 62px/1 var(--mono);letter-spacing:.08em;color:#eaffff;text-shadow:0 0 22px rgba(62,240,255,.7),0 0 60px rgba(62,240,255,.35)}
 .title-screen h1 span{color:var(--magenta);text-shadow:0 0 22px rgba(255,59,212,.7)}
 .title-screen .sub{margin-top:10px;font:600 14px var(--mono);letter-spacing:.3em;color:var(--muted)}
@@ -453,6 +453,24 @@ body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 #stage.mobile.short #hud{row-gap:3px;padding:5px 10px}
 #stage.mobile.short #hudClock{font-size:20px}
 
+/* Account screen */
+.accform{display:flex;flex-direction:column;gap:8px;max-width:340px;margin:14px auto 0;text-align:left}
+.accform label{display:flex;flex-direction:column;gap:4px;font:700 11.5px var(--mono);letter-spacing:.12em;color:var(--muted)}
+.accin{background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:8px;padding:10px 12px;font:600 16px var(--mono);color:var(--text)}
+.accin:focus{border-color:var(--cyan);outline:none;box-shadow:0 0 0 2px rgba(62,240,255,.2)}
+.accin.pin{letter-spacing:.5em;width:160px}
+.tag.livetag{color:#04140c;background:var(--green);animation:blink 1.6s infinite}
+/* Shift report & shift history */
+.gtiles{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:10px;align-items:stretch}
+.gtile{border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center;background:rgba(255,255,255,.025)}
+.gtile .grade{font-size:38px}.gtile.big{border-color:var(--line-2);background:rgba(62,240,255,.05)}.gtile.big .grade{font-size:54px}
+.gtile .gl{font-size:11.5px;letter-spacing:.12em}
+.glist{list-style:none}.glist li{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--line);font-size:13.5px}
+.glist li small{font:600 11px var(--mono);white-space:nowrap}.glist li.gr span{color:var(--green)}.glist li.rd span{color:var(--red)}.glist li.am span{color:var(--amber)}.glist li.muted span{color:var(--muted)}
+.stable{font-size:13.5px}.sth,.str{display:grid;grid-template-columns:34px 1.2fr 1fr .9fr .9fr .8fr .6fr .7fr .6fr;gap:6px;padding:6px 8px;align-items:center}
+.sth{font:700 11px var(--mono);letter-spacing:.1em;color:var(--muted);border-bottom:1px solid var(--line)}.str{border-bottom:1px solid rgba(255,255,255,.04)}.str:nth-child(odd){background:rgba(255,255,255,.02)}
+#stage.mobile .gtiles{grid-template-columns:1fr 1fr}#stage.mobile .gtile.big{grid-column:span 2}
+#stage.mobile .sth,#stage.mobile .str{grid-template-columns:26px 1fr .8fr .8fr .8fr .7fr;font-size:12px}#stage.mobile .sth span:nth-child(n+7),#stage.mobile .str span:nth-child(n+7){display:none}
 /* Leaderboard */
 .lbmeta{padding:8px 22px;border-bottom:1px solid var(--line);font-size:13.5px;display:flex;flex-direction:column;gap:2px}
 .lbrow{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;border:1px solid var(--line);margin-bottom:5px;background:rgba(255,255,255,.02)}
@@ -703,6 +721,7 @@ function makeRng(seedStr) {
   };
   return R;
 }
+function randomRunId() { let s = 'r'; for (let i = 0; i < 15; i++) s += 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]; return s; }
 function randomPid() { let s = ''; for (let i = 0; i < 12; i++) s += '0123456789abcdef'[Math.floor(Math.random() * 16)]; return s; }
 function randomSeed() {
   const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = 'SOC-';
@@ -871,22 +890,15 @@ const DIFFS = {
 const DIFF_ORDER = ['beginner', 'standard', 'veteran', 'advanced'];
 const diffOf = id => DIFFS[id] || DIFFS.standard;
 
-/* ---------------------------------------------------------------------
-   LEADERBOARD CONFIG — owner settings (edit these lines)
-   --------------------------------------------------------------------- */
-const LB_CONFIG = {
-  repo: 'shieldsyncofficial/signal-noise',                                         // GitHub owner/repo for score-submission issues
-  jsonUrl: 'https://shieldsyncofficial.github.io/signal-noise/leaderboard.json',   // full official leaderboard (more than 25 entries)
-  // Anonymous submissions: paste a Google Form "pre-filled link" here, replacing the answer text with {CODE}.
-  // Leave empty to hide the anonymous button (copy/download still work).
-  anonFormUrl: '',
-  embeddedTop: 25,
-};
-
+/** Shift grading: overall = weighted mix of the decisions grade and the handoff grade (owner-tunable). */
+const GRADE_W = { decisions: 0.6, handoff: 0.4 };
+const GRADE_PTS = { A: 100, B: 70, C: 45, D: 20, F: 0 };       // overall shift grade → points added to the run score
+const letterOf = sc => sc >= 90 ? 'A' : sc >= 75 ? 'B' : sc >= 60 ? 'C' : sc >= 40 ? 'D' : 'F';
+const GRADE_COLOR = { A: 'var(--green)', B: 'var(--teal)', C: 'var(--amber)', D: 'var(--orange)', F: 'var(--red)' };
 /** Career score used for ranking. Recomputed by the owner tool to validate submissions. */
 function careerScore(h) {
   const base = (h.shifts || 0) * 100 + (h.prevented || 0) * 40 + (h.bossWon || 0) * 150 + (h.tier || 0) * 200 +
-    Math.round((h.decisions >= 10 ? h.acc || 0 : 0) * 3) - (h.sla || 0) * 5 + (h.cause === 'retired' ? 500 : 0);
+    Math.round((h.decisions >= 10 ? h.acc || 0 : 0) * 3) - (h.sla || 0) * 5 + (h.gradePts || 0) + (h.cause === 'retired' ? 500 : 0);
   return Math.max(0, Math.round(Math.max(0, base) * diffOf(h.diff).mult));
 }
 
@@ -1375,7 +1387,7 @@ function mods() {
 function addCP(v) { const r = S.run; if (!r || r.ended) return; r.cp += Math.max(0, Math.round(v * mods().cp)); }
 /** Backfill fields added in later versions so old saves/imports keep working. */
 function normalizeRun(r) {
-  r.diff = DIFFS[r.diff] ? r.diff : 'standard'; r.cards = r.cards || []; r.cardLog = r.cardLog || []; r.stats = Object.assign({ decisions: 0, correct: 0, prevented: 0, missed: 0, sla: 0, nights: 0, bossWon: 0, bosses: 0, overEsc: 0, alerts: 0, grades: [] }, r.stats || {});
+  r.diff = DIFFS[r.diff] ? r.diff : 'standard'; r.runId = r.runId || randomRunId(); r.shiftLog = r.shiftLog || []; r.cards = r.cards || []; r.cardLog = r.cardLog || []; r.stats = Object.assign({ decisions: 0, correct: 0, prevented: 0, missed: 0, sla: 0, nights: 0, bossWon: 0, bosses: 0, overEsc: 0, alerts: 0, grades: [] }, r.stats || {});
   r.training = r.training || {}; r.certs = r.certs || {}; r.achRun = r.achRun || {}; r.chains = r.chains || []; r.surprises = r.surprises || []; r.history = r.history || [];
   const s = r.shift;
   if (s) { if (!s.cps) { s.cps = CHECKPOINTS.slice(); s.cpDone = s.cps.filter(x => x <= s.t).length; } s.chat = s.chat || []; s.tickets = s.tickets || []; s.watch = s.watch || []; }
@@ -1384,7 +1396,7 @@ function normalizeRun(r) {
 }
 function dirty(q = 1, w = 1, c = 1) { if (q) S.ui.dq = true; if (w) S.ui.dw = true; if (c) S.ui.dc = true; }
 
-function save() { if (S.run && !S.run.ended) Store.set(SAVE_RUN, S.run); Store.set(SAVE_META, S.meta); }
+function save() { if (S.run && !S.run.ended) Store.set(SAVE_RUN, S.run); Store.set(SAVE_META, S.meta); if (typeof cloudSave === 'function') cloudSave(false); }
 function saveMeta() { Store.set(SAVE_META, S.meta); }
 
 /** Build a rotating schedule: blocks of 3–4 shifts, then 2–3 days off, sometimes flipping DAY/NIGHT. */
@@ -1414,7 +1426,7 @@ function ensureSchedule(r) {
 function newRun(seed, startTier, diffId) {
   diffId = DIFFS[diffId] ? diffId : (S.meta.lastDiff || 'standard'); S.meta.lastDiff = diffId;
   S.run = {
-    v: 1, seed, diff: diffId, org: genOrg(seed), tier: startTier, startTier, shiftCount: 0, dayIdx: 0, schedule: buildSchedule(seed),
+    v: 1, seed, diff: diffId, runId: randomRunId(), startedAt: new Date().toISOString(), shiftLog: [], org: genOrg(seed), tier: startTier, startTier, shiftCount: 0, dayIdx: 0, schedule: buildSchedule(seed),
     energy: 100, stress: 8, caf: 0, crash: 0, rep: 50, cp: 0, mug: 100, nextId: 1000 + (hashStr(seed) % 800),
     stats: { decisions: 0, correct: 0, prevented: 0, missed: 0, sla: 0, nights: 0, bossWon: 0, bosses: 0, overEsc: 0, alerts: 0, grades: [] },
     chains: [], surprises: [], history: [], training: {}, certs: {}, achRun: {}, cards: [], cardLog: [],
@@ -1836,7 +1848,19 @@ function finalizeShift(sel) {
     else if (it.imp === -1 && inc.has(it.key)) { score -= 1; noise++; }
   });
   const ratio = max ? score / max : (noise ? .5 : 1);
-  const grade = ratio >= .9 ? 'A' : ratio >= .7 ? 'B' : ratio >= .45 ? 'C' : ratio >= .2 ? 'D' : 'F';
+  // ---- Grade 1: handoff (what you passed on)
+  const hScore = Math.round(clamp(ratio, 0, 1) * 100), grade = letterOf(hScore);
+  const hoBreak = s.hoItems.map(it => ({ label: it.label, imp: it.imp, inc: inc.has(it.key) })).filter(it => it.imp !== 0 || it.inc).slice(0, 40);
+  // ---- Grade 2: decisions (how you worked the queue)
+  const missedN = s.alerts.filter(a => a.outcome === 'missed').length, openN = openAlerts().length;
+  const dParts = [[s.dec ? `Correct calls ${s.ok}/${s.dec}` : (openN ? 'No alerts resolved' : 'Quiet shift, nothing to resolve'), s.dec ? Math.round(s.ok / s.dec * 100) : (openN ? 50 : 85)]];
+  if (s.sla) dParts.push([`SLA breaches ×${s.sla}`, -8 * s.sla]);
+  if (missedN) dParts.push([`Real attacks closed as harmless ×${missedN}`, -12 * missedN]);
+  if (openN > 2) dParts.push([`Alerts left in the queue ×${openN} (first 2 free)`, -2 * (openN - 2)]);
+  if (s.bridge && s.bridge.won) dParts.push(['Major incident contained', 5]);
+  const dScore = clamp(dParts.reduce((t, p) => t + p[1], 0), 0, 100), dGrade = letterOf(dScore);
+  // ---- Overall shift grade (weighted)
+  const oScore = Math.round(dScore * GRADE_W.decisions + hScore * GRADE_W.handoff), oGrade = letterOf(oScore);
   const gRep = { A: 4, B: 2, C: 0, D: -2, F: -4 }[grade], gCp = { A: 3, B: 2, C: 1, D: 0, F: 0 }[grade];
   const next = R.pick(COWORKERS).n, nextShift = s.idx + 1;
   const tell = (txt, rep, st) => r.surprises.push({ shift: nextShift, who: next, text: txt, rep, st });
@@ -1860,12 +1884,16 @@ function finalizeShift(sel) {
   });
   omittedImp.filter(it => it.kind === 'ioc').forEach(it => tell(`${it.v} came back on our shift — it wasn't in your handoff.`, -2, 2));
   omittedImp.filter(it => it.kind === 'warn' && it.key === 'w-out').forEach(() => tell('Nobody told us the SIEM was down earlier — we trusted stale dashboards for an hour.', -2, 2));
-  addRep(gRep - r.tier * .75); addCP(gCp + 2 + Math.floor(s.ok / 4));
+  addRep(gRep - r.tier * .75); addCP(gCp + 2 + Math.floor(s.ok / 4) + ({ A: 2, B: 1 }[oGrade] || 0));
   r.stats.grades.push(grade);
+  r.stats.shiftGrades = (r.stats.shiftGrades || []).concat(oGrade);
+  r.stats.gradePts = (r.stats.gradePts || 0) + GRADE_PTS[oGrade];
   if (grade === 'A') grantAch('handoff');
-  const report = { grade, score, max, noise, rep: Math.round((r.rep - s.repStart) * 10) / 10, cp: r.cp - s.cpStart, dec: s.dec, ok: s.ok, sla: s.sla, missed: s.alerts.filter(a => a.outcome === 'missed').length };
+  const report = { grade: oGrade, hGrade: grade, dGrade, oScore, hScore, dScore, hoBreak, dParts, missed: missedN, score, max, noise, rep: Math.round((r.rep - s.repStart) * 10) / 10, cp: r.cp - s.cpStart, dec: s.dec, ok: s.ok, sla: s.sla, missed: s.alerts.filter(a => a.outcome === 'missed').length };
   s.report = report; s.phase = 'report';
+  r.shiftLog = (r.shiftLog || []).concat({ n: r.shiftCount + 1, day: dayLabel(s.day), type: s.type, grade: oGrade, dGrade, hGrade: grade, oScore, dScore, hScore, dec: s.dec, ok: s.ok, sla: s.sla, missed: missedN, rep: report.rep, cp: report.cp, date: new Date().toISOString() });
   r.shiftCount++;
+  postRun('active'); // live run total → Runs leaderboard
   if (s.type === 'NIGHT') r.consecNights++; else r.consecNights = 0;
   grantAch('first');
   const g = r.stats.grades, resolved = s.alerts.filter(a => a.status === 'closed').length;
@@ -1884,7 +1912,7 @@ function finalizeShift(sel) {
   if (r.stats.decisions >= 25 && r.stats.correct / r.stats.decisions >= .9) grantAch('sharp');
   if (breach) { endRun('breach', breach); return; }
   if (r.ended) return;
-  save();
+  save(); cloudSave(true);
   showShiftReport(report);
 }
 function advanceChain(ch, a, R) {
@@ -1963,7 +1991,7 @@ function endRun(cause, detail) {
     date: new Date().toISOString(), seed: r.seed, cause, diff: r.diff || 'standard', pid: S.meta.profile.id, name: S.meta.profile.name, detail: detail || '', shifts: r.shiftCount, tier: r.tier, startTier: r.startTier,
     decisions: st.decisions, correct: st.correct, acc: Math.round(acc * 100), prevented: st.prevented, sla: st.sla, missed: st.missed, overEsc: st.overEsc,
     bosses: st.bosses, bossWon: st.bossWon, nights: st.nights, grades: st.grades.slice(), cards: (r.cards || []).map(c => ({ id: c.id, n: c.n })),
-    certs: Object.keys(r.certs || {}), ach: Object.keys(r.achRun).filter(k => r.achRun[k] === 'new'), lp, rep: Math.round(r.rep), stress: Math.round(r.stress), cp: r.cp,
+    certs: Object.keys(r.certs || {}), runId: r.runId, gradePts: r.stats.gradePts || 0, shiftGrades: (r.stats.shiftGrades || []).slice(), shiftLog: (r.shiftLog || []).slice(-200), ach: Object.keys(r.achRun).filter(k => r.achRun[k] === 'new'), lp, rep: Math.round(r.rep), stress: Math.round(r.stress), cp: r.cp,
   });
   S.meta.history[0].score = careerScore(S.meta.history[0]);
   S.meta.history[0].id = hashStr(S.meta.profile.id + S.meta.history[0].date + r.seed).toString(36);
@@ -1972,6 +2000,7 @@ function endRun(cause, detail) {
   Store.del(SAVE_RUN); saveMeta();
   closeAllModals();
   Sound[cause === 'retired' ? 'good' : 'bad']();
+  postRun('ended', cause); cloudSave(true); // final score → Runs + Careers leaderboards
   S.suspended = null;
   showSummary({ cause, detail, lp, acc, newAch, curseLP });
 }
@@ -2608,7 +2637,8 @@ function showStart() {
       <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="settings">⚙ SETTINGS</button><button class="btn lg" style="flex:1" data-go="howto">? HOW TO PLAY</button></div>
       ${document.documentElement.requestFullscreen ? '<button class="btn lg ghost" data-go="fullscreen">⛶ FULLSCREEN</button>' : ''}
     </div>
-    <div class="foot-note">Signed in as <b class="cy">${esc(profileName())}</b> · Runs: ${S.meta.runs} · Best: ${S.meta.best.shifts} shifts · Highest tier: ${TIERS[S.meta.best.tier]}${Store.ok ? '' : '<br><span class="am">Storage unavailable — progress will not be saved.</span>'}</div>
+    ${Net.enabled() && !acctAny() ? '<div class="card" style="max-width:360px;margin:6px auto 0;padding:8px 10px"><p style="font-size:13px">Playing offline. <button class="btn sm primary" data-go="acc-reg">Create account</button> <button class="btn sm" data-go="acc-login">Log in</button></p></div>' : ''}
+    <div class="foot-note">${acctAny() ? (acct() ? '<span class="gr">●</span> Online as' : '<span class="am">●</span> Login expired:') : 'Playing as'} <b class="cy">${esc(profileName())}</b> · Runs: ${S.meta.runs} · Best: ${S.meta.best.shifts} shifts · Highest tier: ${TIERS[S.meta.best.tier]}${Store.ok ? '' : '<br><span class="am">Storage unavailable — progress will not be saved.</span>'}</div>
   </div></div>`);
 }
 function showNewRun() {
@@ -2659,7 +2689,8 @@ function showHowTo(back = 'menu') {
     <h3>RESOURCES</h3><ul><li><b>Energy</b> drains over time. When it's low, queries take 50% longer. Coffee (<kbd>Q</kbd>, refill <kbd>R</kbd>) and breaks restore it.</li><li><b>Caffeine</b> gives energy now and a crash later, and high caffeine raises stress.</li><li><b>Stress</b> rises with backlog, mistakes and night work. It falls with rest and days off.</li><li><b>Reputation</b> rises with accurate calls and good handoffs, and falls with SLA breaches and mistakes.</li></ul>
     <h3>POINTS</h3><ul><li><b>CP — Career Points</b> (top bar) belong to the current career. You earn them by catching real threats, handing off well, finishing shifts, containing major incidents and taking curse cards. Spend them on days off for rest, training and the certifications you need for promotion. Higher tiers earn more CP.</li><li><b>LP — Legacy Points</b> are earned when a run ends and are kept forever. Spend them in <b>Unlocks</b> on permanent perks and tools.</li></ul>
     <h3>MAJOR INCIDENTS</h3><p>Every 5th shift a major incident opens a timed bridge on Monitor 3. Solve at least 3 of 4 objectives before time runs out.</p>
-    <h3>PROFILE</h3><p>Your <b>Profile</b> (main menu or pause menu) shows your callsign, lifetime stats, all achievements with progress, and a history of past careers. You can replay any career's seed from there. <b>Save Profile</b> downloads everything, including a career in progress, to a file. <b>Load Profile</b> (or drag and drop the file) restores it on any browser or device.</p>
+    <h3>SHIFT GRADES</h3><p>Every shift ends with three grades. <b>Decisions</b> starts from your accuracy (correct calls ÷ calls), then loses 8 per SLA breach, 12 per real attack you closed as harmless, and 2 per alert left in the queue beyond the first two. <b>Handoff</b> rewards including every important item and leaving out junk. The <b>Shift grade</b> is ${Math.round(GRADE_W.decisions * 100)}% Decisions + ${Math.round(GRADE_W.handoff * 100)}% Handoff (A ≥ 90 · B ≥ 75 · C ≥ 60 · D ≥ 40), and it adds points to your run score (A = 100 … F = 0). See every past shift in <b>📋 Shift history</b> (pause menu or days-off screen).</p>
+    <h3>ACCOUNT, PROFILE & LEADERBOARDS</h3><p>Your <b>username + 4-digit passcode</b> log you in on any device, and progress saves to the cloud automatically. <b>Profile</b> shows lifetime stats, achievements and run history (replay any seed). <b>Leaderboards</b>: <b>Runs</b> (live, updated every time someone clocks out of a shift) and <b>Careers</b> (finished runs). <b>Save / Load Profile</b> files remain as a backup.</p>
     <h3>DAYS OFF & META</h3><p>On days off, spend Career Points (CP) on rest, training and certifications. Certifications plus reputation unlock promotions. When a run ends you earn Legacy Points for permanent perks and tools.</p>
     <h3>ON A PHONE OR TABLET</h3><p>Use the tab bar at the bottom to switch between <b>Queue</b>, <b>Case</b> (the investigation workspace) and <b>Comms</b>. Badges show open alerts and unread messages. Tapping an alert opens it in Case. The ☕ button drinks coffee, ❚❚ pauses, 🃏 shows your cards, and MENU opens saves and settings. Landscape gives more room. For full screen, use "Add to Home Screen" or the Fullscreen button where your browser supports it.</p>
     <h3>KEYS</h3><p><kbd>J</kbd>/<kbd>K</kbd> queue · <kbd>1</kbd>–<kbd>5</kbd> evidence tabs · <kbd>F</kbd> <kbd>B</kbd> <kbd>E</kbd> <kbd>P</kbd> <kbd>I</kbd> <kbd>D</kbd> decide · <kbd>Q</kbd> sip · <kbd>R</kbd> refill · <kbd>Space</kbd> pause · <kbd>T</kbd> fast-forward · <kbd>M</kbd> sound · <kbd>L</kbd> lamp · <kbd>Esc</kbd> menu</p>
@@ -2672,6 +2703,7 @@ function showPauseMenu() {
     <button class="btn primary lg" data-go="resume" data-primary="1">▶ RESUME</button>
     <button class="btn lg" data-go="settings2">⚙ SETTINGS</button>
     <button class="btn lg" data-go="howto2">? HOW TO PLAY</button>
+    <button class="btn lg" data-go="shifthist">📋 SHIFT HISTORY (${(S.run.shiftLog || []).length})</button>
     <button class="btn lg" data-go="cards">🃏 ACTIVE CARDS (${(S.run.cards || []).reduce((t, c) => t + c.n, 0)})</button>
     <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="profile2">👤 PROFILE</button><button class="btn lg" style="flex:1" data-go="leaderboard2">🏆 RANKS</button></div>
     <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="download">⇩ SAVE PROFILE</button><button class="btn lg" style="flex:1" data-go="load2">⇪ LOAD PROFILE</button></div>
@@ -2712,23 +2744,43 @@ function startLive() {
 }
 function showOutgoingHandoff(items) {
   const secs = ['Open tickets', 'Ongoing incidents', 'IOCs / watchlist', 'System notes'];
-  const html = `<p class="muted">17:45 — build your handoff for the next shift. Include everything they need (open tickets, real IOCs, important system notes) and leave out what they don't. Good handoffs earn reputation. Bad ones come back to bite you.</p>` +
-    secs.map(sec => { const its = items.filter(i => i.sec === sec); return `<div class="hosec">${sec.toUpperCase()} (${its.length})</div>` + (its.length ? its.map(i => `<label class="hoitem"><input type="checkbox" data-key="${esc(i.key)}"><div><div class="ht">${esc(i.label)}</div><div class="hs">${esc(i.sub || '')}</div></div></label>`).join('') : '<div class="muted" style="font-size:14px">— none —</div>'); }).join('');
+  const html = `<p class="muted">17:45 — build your handoff for the next shift. This is graded as your <b>handoff grade</b> (${Math.round(GRADE_W.handoff * 100)}% of your shift grade). Include <b>every</b> open ticket, real IOCs (from alerts you contained or escalated) and important system notes. Leave out junk. Missing one important item usually costs a full letter grade.</p>` +
+    secs.map(sec => { const its = items.filter(i => i.sec === sec); return `<div class="hosec">${sec.toUpperCase()} (${its.length})</div>` + (its.length ? its.map(i => `<label class="hoitem"><input type="checkbox" data-key="${esc(i.key)}"><div><div class="ht">${esc(i.label)}</div><div class="hs">${esc(i.sub || '')}${S.run && S.run.diff === 'beginner' && i.imp === -1 ? ' · <span class="am">💡 Ravi: probably not needed</span>' : ''}</div></div></label>`).join('') : '<div class="muted" style="font-size:14px">— none —</div>'); }).join('');
   modal({ title: 'SHIFT HANDOFF — OUTGOING', ico: '✍', wide: true, body: html, buttons: [{ label: 'Select all open tickets', cls: 'ghost', keep: true, fn(back) { $$('input[data-key^="o"]', back).forEach(x => x.checked = true); } },{ label: 'Submit handoff & clock out', cls: 'primary', keep: true, fn(back, close) { const sel = $$('input[data-key]', back).filter(x => x.checked).map(x => x.dataset.key); close(); finalizeShift(sel); } }] });
 }
 function showShiftReport(rep) {
-  const r = S.run, s = sh(), gc = { A: 'var(--green)', B: 'var(--teal)', C: 'var(--amber)', D: 'var(--orange)', F: 'var(--red)' }[rep.grade];
-  const next = r.schedule[r.dayIdx + 1];
+  const r = S.run, next = r.schedule[r.dayIdx + 1];
+  const tile = (g, sc, lbl, big) => `<div class="gtile ${big ? 'big' : ''}"><div class="grade" style="color:${GRADE_COLOR[g] || 'var(--text)'}">${g || '—'}</div><div class="mono muted gl">${lbl}${sc != null ? ` · ${sc}/100` : ''}</div></div>`;
+  const legacy = !rep.dGrade; // reports saved by older versions only had the handoff grade
+  const dList = (rep.dParts || []).map(([l, p]) => `<li><span>${esc(l)}</span><b class="${p < 0 ? 'rd' : ''}">${p > 0 && l.indexOf('Correct') ? '+' : ''}${p}</b></li>`).join('');
+  const hList = (rep.hoBreak || []).map(it => {
+    const st = it.imp === 1 ? (it.inc ? ['✓', 'gr', 'included'] : ['✗', 'rd', 'missed (−)']) : it.imp === -1 ? (it.inc ? ['⚠', 'am', 'junk included (−)'] : ['·', 'muted', 'junk, correctly left out']) : ['·', 'muted', 'neutral'];
+    return `<li class="${st[1]}"><span>${st[0]} ${esc(it.label)}</span><small>${st[2]}</small></li>`;
+  }).join('');
   modal({
-    title: 'SHIFT REPORT', ico: '📊', wide: true, body: `<div class="grid3" style="align-items:center">
-      <div><div class="grade" style="color:${gc}">${rep.grade}</div><div class="mono muted" style="text-align:center;font-size:11.5px;letter-spacing:.14em">HANDOFF GRADE</div></div>
-      <div class="bigstat">${rep.ok}/${rep.dec}<small>CORRECT CALLS</small></div>
-      <div class="bigstat">${rep.sla}<small>SLA BREACHES</small></div></div>
-      <div class="grid3" style="margin-top:14px"><div class="bigstat" style="font-size:23px">${rep.rep >= 0 ? '+' : ''}${rep.rep}<small>REPUTATION</small></div><div class="bigstat" style="font-size:23px">+${rep.cp}<small>CAREER POINTS</small></div><div class="bigstat" style="font-size:23px">${Math.round(r.stress)}<small>STRESS</small></div></div>
-      <p class="muted" style="margin-top:14px">${rep.noise ? `You included ${rep.noise} noisy item(s) in the handoff. ` : ''}Some outcomes (missed threats, orphaned tickets) only surface on later shifts…</p>
+    title: `SHIFT REPORT · SHIFT #${r.shiftCount}`, ico: '📊', wide: true, body: legacy ? `<div class="grid3">${tile(rep.grade, null, 'HANDOFF GRADE', true)}<div class="bigstat">${rep.ok}/${rep.dec}<small>CORRECT CALLS</small></div><div class="bigstat">${rep.sla}<small>SLA BREACHES</small></div></div>` : `
+      <div class="gtiles">${tile(rep.grade, rep.oScore, 'SHIFT GRADE', true)}${tile(rep.dGrade, rep.dScore, `DECISIONS · ${Math.round(GRADE_W.decisions * 100)}%`)}${tile(rep.hGrade, rep.hScore, `HANDOFF · ${Math.round(GRADE_W.handoff * 100)}%`)}</div>
+      <div class="grid2" style="margin-top:12px">
+        <div class="card"><h4>DECISIONS: HOW YOU WORKED THE QUEUE</h4><ul class="glist">${dList}</ul><p class="muted" style="font-size:12.5px;margin-top:6px">Score = accuracy, minus penalties. A ≥ 90 · B ≥ 75 · C ≥ 60 · D ≥ 40.</p></div>
+        <div class="card"><h4>HANDOFF: WHAT YOU PASSED ON</h4><ul class="glist">${hList || '<li class="muted">Nothing to hand off.</li>'}</ul><p class="muted" style="font-size:12.5px;margin-top:6px">Include every open ticket, real IOC and important system note. Leave out junk.</p></div>
+      </div>`
+      + `<div class="grid3" style="margin-top:12px"><div class="bigstat" style="font-size:23px">${rep.rep >= 0 ? '+' : ''}${rep.rep}<small>REPUTATION</small></div><div class="bigstat" style="font-size:23px">+${rep.cp}<small>CAREER POINTS</small></div><div class="bigstat" style="font-size:23px">${Math.round(r.stress)}<small>STRESS</small></div></div>
+      <p class="muted" style="margin-top:12px">${acct() ? '🌐 Your run total has been posted to the live Runs leaderboard. ' : ''}Some outcomes (missed threats, orphaned tickets) only surface on later shifts…</p>
       <p style="margin-top:6px">Next: <b>${next === 'OFF' ? 'Days off 🏠' : dayLabel(r.dayIdx + 1) + ' ' + next + ' shift'}</b></p>`,
-    buttons: [{ label: next === 'OFF' ? 'Go home ▶' : 'Sleep & next shift ▶', cls: 'primary', fn: proceedAfterShift }]
+    buttons: [{ label: '📋 Shift history', cls: 'ghost', keep: true, fn() { showShiftHistory(r.shiftLog, 'This run'); } }, { label: next === 'OFF' ? 'Go home ▶' : 'Sleep & next shift ▶', cls: 'primary', fn: proceedAfterShift }]
   });
+}
+/** Table of every shift in a run (current run or a past one from run history). */
+function shiftLogHTML(log) {
+  if (!log || !log.length) return '<p class="muted">No completed shifts yet. Each shift is recorded here when you clock out.</p>';
+  const g = x => `<b style="color:${GRADE_COLOR[x] || 'var(--muted)'}">${x || '—'}</b>`;
+  return `<div class="stable"><div class="sth"><span>#</span><span>SHIFT</span><span>OVERALL</span><span>DECISIONS</span><span>HANDOFF</span><span>CALLS</span><span>SLA</span><span>REP</span><span>CP</span></div>` +
+    log.slice().reverse().map(x => `<div class="str"><span class="mono">${x.n}</span><span>${esc(x.day || '')} ${x.type === 'NIGHT' ? '☾' : '☀'}</span><span>${g(x.grade)}${x.oScore != null ? ` <small class="muted">${x.oScore}</small>` : ''}</span><span>${g(x.dGrade)}</span><span>${g(x.hGrade)}</span><span class="mono">${x.ok}/${x.dec}</span><span class="mono ${x.sla ? 'rd' : ''}">${x.sla}</span><span class="mono ${x.rep < 0 ? 'rd' : 'gr'}">${x.rep >= 0 ? '+' : ''}${x.rep}</span><span class="mono">+${x.cp}</span></div>`).join('') + '</div>';
+}
+function showShiftHistory(log, title) {
+  const wasPaused = S.paused; S.paused = true;
+  const n = (log || []).length, avg = n ? Math.round(log.reduce((t, x) => t + (x.oScore || 0), 0) / n) : 0;
+  modal({ title: `📋 SHIFT HISTORY · ${esc(title || '')}`, wide: true, body: `${n ? `<p class="muted">${n} shift${n === 1 ? '' : 's'} · average shift score ${avg}/100 (${letterOf(avg)}) · newest first</p>` : ''}${shiftLogHTML(log)}`, buttons: [{ label: 'Close', cls: 'primary', fn() { S.paused = wasPaused; } }] });
 }
 
 /* ---------- Home (days off) ---------- */
@@ -2752,7 +2804,7 @@ function showHome() {
     <div class="panel-b"><div class="sched" style="margin-bottom:12px">${sched}</div>${promo}
     <div class="hosec">REST & TRAINING</div><div class="grid3">${act}</div>
     <div class="hosec" style="margin-top:14px">CERTIFICATIONS</div><div class="grid2">${certs}</div></div>
-    <div class="panel-f"><span class="muted mono" style="font-size:12.5px">${TIERS[r.tier]} · ${r.shiftCount} shifts survived · seed ${r.seed}</span><span class="sp"></span><button class="btn" data-go="download">⇩ Save profile</button><button class="btn" data-go="menuFromHome">Save & quit</button><button class="btn primary lg" data-go="work" data-primary="1">Back to work: ${dayLabel(r.dayIdx + h.off)} ${r.schedule[r.dayIdx + h.off]} ▶</button></div></div>`);
+    <div class="panel-f"><span class="muted mono" style="font-size:12.5px">${TIERS[r.tier]} · ${r.shiftCount} shifts survived · seed ${r.seed}</span><span class="sp"></span><button class="btn" data-go="shifthist-home">📋 Shift history</button><button class="btn" data-go="download">⇩ Save profile</button><button class="btn" data-go="menuFromHome">Save & quit</button><button class="btn primary lg" data-go="work" data-primary="1">Back to work: ${dayLabel(r.dayIdx + h.off)} ${r.schedule[r.dayIdx + h.off]} ▶</button></div></div>`);
   renderHUD(); renderDesk();
 }
 function doHome(id) {
@@ -2793,7 +2845,7 @@ function showSummary({ cause, detail, lp, acc, newAch, curseLP }) {
       <div class="card"><h4>UNLOCKS EARNED</h4><p class="bigstat" style="font-size:25.5px;color:var(--cyan)">+${lp} LP <small>LEGACY POINTS (TOTAL ${S.meta.lp})</small></p>${newAch.length ? '<p style="margin-top:6px">' + newAch.map(k => '🏆 ' + ACH[k].name).join('<br>') + '</p>' : '<p class="muted" style="margin-top:6px">No new achievements this run.</p>'}
       ${UNLOCKS.some(u => !hasU(u.id) && S.meta.lp >= u.cost && !(u.need && !S.meta.ach[u.need])) ? '<p class="gr" style="margin-top:6px">New unlocks are affordable in the Unlocks menu!</p>' : ''}</div>
     </div>
-    ${(() => { const h = S.meta.history[0]; if (!h) return ''; const rows = lbRows('all'), i = rows.findIndex(x => x.mine && x.id === h.id); return `<div class="card" style="margin-top:12px;border-color:rgba(62,240,255,.45)"><h4>🏆 CAREER SCORE: ${(h.score || 0).toLocaleString()} <span class="muted" style="font-weight:600">(${diffOf(h.diff).ico} ${diffOf(h.diff).name} ×${diffOf(h.diff).mult})</span></h4><p>${i >= 0 ? `This career would rank <b class="cy">#${i + 1}</b> on the leaderboard (unofficial until reviewed).` : 'Your best career on the leaderboard is still an earlier one.'}</p><div class="row"><span class="sp"></span><button class="btn primary" data-go="lb-submit-last">Submit to leaderboard ▶</button></div></div>`; })()}
+    ${(() => { const h = S.meta.history[0]; if (!h) return ''; return `<div class="card" style="margin-top:12px;border-color:rgba(62,240,255,.45)"><h4>🏆 CAREER SCORE: ${(h.score || 0).toLocaleString()} <span class="muted" style="font-weight:600">(${diffOf(h.diff).ico} ${diffOf(h.diff).name} ×${diffOf(h.diff).mult})</span></h4><p>${acctAny() && Net.enabled() ? '🌐 Posted automatically to the live <b>Runs</b> and <b>Careers</b> leaderboards.' : Net.enabled() ? 'You\'re playing offline. Create an account from your Profile to post scores.' : 'Saved to this device\'s leaderboard.'}</p><div class="row"><span class="sp"></span><button class="btn primary" data-go="lb-summary">🏆 See where you rank ▶</button></div></div>`; })()}
     <div class="card" style="margin-top:12px"><h4>SHIFT CARDS THIS CAREER</h4>${r.cards.length ? '<p>' + r.cards.map(c => { const d = CARD_BY[c.id]; return d ? `${d.ico} ${esc(d.name)}${c.n > 1 ? ' ×' + c.n : ''}` : ''; }).join(' · ') + '</p>' : '<p class="muted">No cards taken.</p>'}${curseLP ? `<p class="mg" style="margin-top:4px">Curses paid out +${curseLP} LP (included above).</p>` : ''}</div>
   </div><div class="panel-f"><button class="btn" data-go="download" title="Download your profile (unlocks, LP, achievements, history)">⇩ Save profile</button><button class="btn" data-go="profile-hist">📜 Run history</button><button class="btn" data-go="unlocks">◈ Unlocks</button><button class="btn" data-go="menu">Main menu</button><span class="sp"></span><button class="btn primary lg" data-go="new" data-primary="1">NEW RUN ▶</button></div></div>`);
   S.run = null; renderAll();
@@ -2812,7 +2864,8 @@ function getSavedRun() {
 function buildSaveFile() {
   if (S.run && !S.run.ended) save();
   const run = getSavedRun();
-  const body = { meta: S.meta, run: run ? JSON.parse(JSON.stringify(run)) : null };
+  const m = Object.assign({}, S.meta); delete m.account; delete m.outbox; // never put the login token in a file
+  const body = { meta: m, run: run ? JSON.parse(JSON.stringify(run)) : null };
   return Object.assign({ format: SAVE_FORMAT, version: 2, game: 'SIGNAL//NOISE', exportedAt: new Date().toISOString(), checksum: hashStr(JSON.stringify(body)).toString(16) }, body);
 }
 function downloadSave() {
@@ -2860,8 +2913,10 @@ function handleSaveFile(file) {
 }
 function applySaveFile(p) {
   closeAllModals(); closeOverlay();
+  const keepAcct = S.meta.account;
   S.meta = normalizeMeta(p.meta); S.suspended = null; S.paused = false; S.ff = false;
-  applySettings(); saveMeta();
+  if (keepAcct) { S.meta.account = keepAcct; S.meta.outbox = []; S.meta.profile.name = keepAcct.username; S.meta.profile.id = keepAcct.pid; S.meta.profile.named = true; }
+  applySettings(); saveMeta(); cloudSave(true);
   if (p.run && !p.run.ended) {
     S.run = normalizeRun(p.run); Store.set(SAVE_RUN, S.run);
     toast('Profile loaded — welcome back, ' + profileName(), 'good');
@@ -2954,8 +3009,8 @@ function showProfile(tab = 'stats', back = 'menu') {
   let body = '';
   if (tab === 'stats') {
     const ends = Object.entries(ENDINGS).map(([k, [ico, lbl]]) => `<span class="chip" title="${lbl}">${ico} ${lbl} <b>${Lf.endings[k] || 0}</b></span>`).join(' ');
-    body = `<div class="card" style="margin-bottom:12px"><div class="field" style="margin:0"><label>CALLSIGN</label><div style="display:flex;gap:6px"><input type="text" id="pName" maxlength="16" value="${esc(profileName())}" style="flex:1"><button class="btn" data-go="pname">Save name</button></div></div>
-      <p class="muted" style="margin-top:8px">Profile created ${fmtDate(m.profile.created)} · ${m.runs} career${m.runs === 1 ? '' : 's'} started${live ? ` · <span class="cy">career in progress: seed ${esc(live.seed)}, ${live.shiftCount} shift(s), ${esc(TIERS[live.tier])}</span>` : ''}</p></div>
+    body = accountCardHTML() + `<div class="card" style="margin-bottom:12px">
+      <p class="muted">Profile created ${fmtDate(m.profile.created)} · ${m.runs} career${m.runs === 1 ? '' : 's'} started${live ? ` · <span class="cy">career in progress: seed ${esc(live.seed)}, ${live.shiftCount} shift(s), ${esc(TIERS[live.tier])}</span>` : ''}</p></div>
       <div class="grid3">
         <div class="card"><div class="bigstat">${Lf.runs}<small>CAREERS FINISHED</small></div></div>
         <div class="card"><div class="bigstat">${Lf.shifts}<small>SHIFTS SURVIVED</small></div></div>
@@ -2998,7 +3053,7 @@ function showHistoryDetail(i) {
   const cards = (h.cards || []).map(c => { const d = CARD_BY[c.id]; return d ? `${d.ico} ${esc(d.name)}${c.n > 1 ? ' ×' + c.n : ''}` : ''; }).filter(Boolean).join(' · ');
   modal({
     title: `${ico} ${lbl.toUpperCase()}`, wide: true, body: `
-    <p class="muted">${fmtDate(h.date, true)} · seed <span class="mono cy">${esc(h.seed)}</span> · started as ${esc(TIERS[h.startTier] || TIERS[0])} · difficulty <b style="color:${diffOf(h.diff).color}">${diffOf(h.diff).ico} ${diffOf(h.diff).name}</b> · career score <b class="cy">${(h.score || 0).toLocaleString()}</b>${h.submitted ? ' · submitted to leaderboard' : ''}</p>
+    <p class="muted">${fmtDate(h.date, true)} · seed <span class="mono cy">${esc(h.seed)}</span> · started as ${esc(TIERS[h.startTier] || TIERS[0])} · difficulty <b style="color:${diffOf(h.diff).color}">${diffOf(h.diff).ico} ${diffOf(h.diff).name}</b> · career score <b class="cy">${(h.score || 0).toLocaleString()}</b></p>
     ${h.detail ? `<p>${esc(h.detail)}</p>` : ''}
     <div class="grid3" style="margin-top:8px">
       <div class="card"><div class="bigstat">${h.shifts}<small>SHIFTS</small></div></div>
@@ -3012,7 +3067,8 @@ function showHistoryDetail(i) {
     <p><b>Handoff grades</b> <span class="mono">${(h.grades || []).join(' ') || '—'}</span></p>
     <p><b>Certifications</b> ${(h.certs || []).map(id => { const c = CERTS.find(x => x.id === id); return c ? esc(c.name.split(' (')[0]) : ''; }).join(', ') || '—'}</p>
     <p><b>Cards</b> ${cards || '—'}</p>
-    <p><b>Achievements unlocked</b> ${(h.ach || []).map(k => ACH[k] ? '🏆 ' + esc(ACH[k].name) : '').join(' · ') || '—'}</p>`,
+    <p><b>Achievements unlocked</b> ${(h.ach || []).map(k => ACH[k] ? '🏆 ' + esc(ACH[k].name) : '').join(' · ') || '—'}</p>
+    <div class="hosec" style="margin-top:12px">SHIFT HISTORY</div>${h.shiftLog ? shiftLogHTML(h.shiftLog) : '<p class="muted">Shift-by-shift history is recorded for runs played on this version and later.</p>'}`,
     buttons: [{ label: 'Delete entry', cls: 'ghost', fn() { S.meta.history.splice(i, 1); saveMeta(); showProfile('hist', S.profileBack); } }, { label: 'Close' }, { label: '↻ Replay this seed', cls: 'primary', fn() { if (getSavedRun() && !confirmReplace()) return; replaySeed(h.seed, h.startTier || 0, h.diff); } }],
   });
 }
@@ -3024,37 +3080,8 @@ function replaySeed(seed, tier, diffId) {
 
 
 /* =====================================================================
-   18e. CALLSIGN GATE & FIRST-TIME WALKTHROUGH
+   18e2. FIRST-TIME WALKTHROUGH
    ===================================================================== */
-/** Decide what the player sees on boot / after loading: callsign → walkthrough → menu. */
-function routeHome() {
-  if (!S.meta.profile.named) showCallsign();
-  else if (!S.meta.walkthroughDone) startWalkthrough(true);
-  else showStart();
-}
-function showCallsign() {
-  showOverlay('callsign', `<div class="panel" style="width:min(560px,calc(var(--sw) * 94))"><div class="title-screen" style="padding-bottom:10px">
-    <div class="sub">HALCYON DYNAMICS · SECURITY OPERATIONS CENTER</div>
-    <h1 style="margin-top:12px;font-size:40px">SIGNAL<span>//</span>NOISE</h1>
-    <p style="margin:18px auto 6px;max-width:420px">Welcome aboard. Before we badge you in, what should we call you?</p>
-    <p class="muted" style="max-width:420px;margin:0 auto">Your <b>callsign</b> goes on your ID badge, your profile and the public leaderboard. Don't use your real full name.</p>
-    <div style="display:flex;gap:8px;max-width:380px;margin:18px auto 6px"><input type="text" id="csIn" maxlength="16" placeholder="e.g. NightHawk" autocomplete="off" style="flex:1;background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:8px;padding:10px 12px;font:600 16px var(--mono)"></div>
-    <div id="csErr" class="am" style="min-height:20px;font-size:13px"></div>
-    <button class="btn primary lg" data-go="cs-ok" data-primary="1" style="margin-top:4px">BADGE IN ▶</button>
-    <p class="muted" style="margin-top:16px;font-size:13px">Played before on another device? <button class="btn sm ghost" data-go="load-cs">⇪ Load your profile file</button></p>
-  </div></div>`);
-  const i = $('#csIn'); i.focus();
-  i.addEventListener('keydown', e => { if (e.key === 'Enter') submitCallsign(); });
-}
-function submitCallsign() {
-  const v = ($('#csIn').value || '').trim().replace(/\s+/g, ' ');
-  if (v.length < 2) { $('#csErr').textContent = 'Use at least 2 characters.'; return; }
-  if (!/^[\w .\-]+$/.test(v)) { $('#csErr').textContent = 'Letters, numbers, spaces, dots, dashes and underscores only.'; return; }
-  S.meta.profile.name = v.slice(0, 16); S.meta.profile.named = true; saveMeta(); renderDesk();
-  Sound.good(); toast('Welcome, ' + S.meta.profile.name, 'good');
-  routeHome();
-}
-
 /* ---- Walkthrough pages. ready() gates the Next button on interactive pages. ---- */
 const WALK = [
   { t: 'WELCOME TO THE SOC', h: () => `
@@ -3101,7 +3128,7 @@ const WALK = [
   { t: 'SHIFTS & HANDOFFS', ready: () => S.walk.ho != null, h: () => `
     <p>The SOC runs 24/7 in two 12-hour shifts: <b>☀ Day</b> (06:00–18:00: busy, lots of users and phishing) and <b>☾ Night</b> (18:00–06:00: skeleton crew, automated attacks). Your schedule rotates, with days off in between.</p>
     <p>Fifteen minutes before each shift you read a <b>handoff note</b> from the person leaving. It lists open tickets, a <b>watchlist</b> of suspicious users/IPs, and planned changes. Read it: it tells you which activity is approved and what to watch. Rushed colleagues sometimes forget things, so <b>asking</b> if anything's missing can help.</p>
-    <p>At the end of your shift <b>you</b> write one. <b>Try it:</b> tick what the next shift needs to know, then press Check.</p>
+    <p>At the end of your shift <b>you</b> write one, and it's graded. Each shift gets a <b>Decisions</b> grade (correct calls, SLA breaches, missed attacks) and a <b>Handoff</b> grade, combined into an overall <b>Shift grade</b> (${Math.round(GRADE_W.decisions * 100)}/${Math.round(GRADE_W.handoff * 100)}). <b>Try it:</b> tick what the next shift needs to know, then press Check.</p>
     <div class="wdemo">${WALK_HO.map((x, i) => `<label class="hoitem"><input type="checkbox" data-who="${i}" ${S.walk['h' + i] ? 'checked' : ''}><div class="ht">${x.t}</div></label>`).join('')}
     <button class="btn sm primary" data-wcheck="1" style="margin-top:6px">Check my handoff</button>${S.walk.ho != null ? `<p class="${S.walk.ho ? 'gr' : 'am'}" style="margin-top:6px">${S.walk.ho ? '✔ Perfect. Open tickets, real attacker details and system problems always go in; gossip stays out.' : '✘ Close. Always include open tickets, real attacker details (IOCs) and system problems, and leave out chit-chat. Leaving things out comes back as "you didn\'t tell us about this!"'}</p>` : ''}</div>` },
   { t: 'CONSEQUENCES CATCH UP WITH YOU', h: () => `
@@ -3120,8 +3147,8 @@ const WALK = [
     <div class="card"><h4>◈ LP: Legacy Points</h4><p>Earned when a career <b>ends</b>, and from achievements. <b>Kept forever.</b> Spend them in <b>Unlocks</b> on permanent perks and tools that help every future career.</p></div></div>
     <p style="margin-top:10px"><b>Promotions</b> need three things: enough shifts survived, enough Reputation, and the right <b>certification</b>. Higher tiers earn more but face harder attacks.</p>` },
   { t: 'PROFILE, LEADERBOARD & DIFFICULTY', h: () => `
-    <ul class="wlist"><li><b>👤 Profile</b>: your callsign, lifetime stats, 34 achievements and a history of every career. <b>Save Profile</b> downloads it to a file, and <b>Load Profile</b> brings it to another browser, computer or phone.</li>
-    <li><b>🏆 Leaderboard</b>: every finished career gets a score. You'll immediately see where you'd <b>unofficially</b> rank, then submit your score so the game owner can review it and add it to the <b>official</b> board.</li>
+    <ul class="wlist"><li><b>👤 Account & profile</b>: your username and 4-digit passcode log you in on any device, and your progress saves to the cloud automatically. Your profile shows lifetime stats, 34 achievements and a history of every career. <b>Save Profile</b> also downloads a backup file.</li>
+    <li><b>🏆 Leaderboards</b>: with an online account, your run's score posts <b>automatically every time you clock out of a shift</b>. The <b>Runs</b> board shows every run live, even unfinished ones, and the <b>Careers</b> board shows finished careers. Open it any time to see where you rank. It refreshes itself.</li>
     <li><b>Difficulty</b>: pick one per career. <b class="gr">🌱 Beginner</b> is gentle, with 5 hints per shift from me. <b class="cy">🛡 Standard</b> is the intended game. <b class="am">⚔ Veteran</b> and <b class="mg">☠ Advanced</b> are for experienced players. Harder difficulties multiply your leaderboard score.</li></ul>` },
   { t: 'CONTROLS & YOU\'RE READY', h: () => `
     <div class="wgrid2"><div class="card"><h4>🖱 Mouse / 📱 touch</h4><p>Everything works by clicking or tapping. On phones, use the bottom tabs (Queue · Case · Comms · ☕).</p></div>
@@ -3184,204 +3211,309 @@ function walkNext() {
 
 
 /* =====================================================================
-   18f. LEADERBOARD
-   Official board = owner-approved entries. Two copies:
-     • top 25 embedded in index.html  (#official-leaderboard; works offline)
-     • full list in leaderboard.json   (fetched from GitHub Pages when online)
-   The newest (by reviewedAt) wins. The player's own careers are merged in
-   live as UNOFFICIAL until the owner reviews and publishes them.
+   18e. ONLINE ACCOUNTS, CLOUD SAVES & SYNC (Supabase, plain REST — no SDK)
+   The owner pastes their Supabase Project URL + public (anon/publishable)
+   key below. Leave them empty and the game runs fully offline.
    ===================================================================== */
-const LB_FORMAT = 'signal-noise-leaderboard', LB_CACHE = 'signalnoise.lb.cache.v1', LB_PREVIEW = 'signalnoise.lb.preview.v1';
-const LB = { official: null, source: 'embedded', fetchedAt: null, loading: false, err: null, tab: 'all', sel: 0, timer: null };
-function lbClean(e) {
-  if (!e || typeof e !== 'object') return null;
-  const n = (v, a, b) => clamp(Math.round(+v || 0), a, b);
-  const out = { id: String(e.id || '').slice(0, 24), pid: String(e.pid || '').slice(0, 24), name: String(e.name || 'Analyst').replace(/[^\w .\-]/g, '').slice(0, 16) || 'Analyst',
-    diff: DIFFS[e.diff] ? e.diff : 'standard', shifts: n(e.shifts, 0, 500), tier: n(e.tier, 0, 4), acc: n(e.acc, 0, 100), decisions: n(e.decisions, 0, 20000),
-    prevented: n(e.prevented, 0, 5000), bossWon: n(e.bossWon, 0, 200), sla: n(e.sla, 0, 20000), cause: ENDINGS[e.cause] ? e.cause : 'resigned',
-    seed: String(e.seed || '').slice(0, 24), date: String(e.date || '').slice(0, 30), bot: e.bot === true };
-  if (!out.id) return null;
-  out.score = careerScore(out);
-  return out;
+const ONLINE = {
+  url: '',   // e.g. 'https://abcdefghijkl.supabase.co'
+  key: '',   // Project Settings → API → anon / publishable key (safe to publish; the database only allows the sn_* functions)
+};
+const acctAny = () => S.meta.account || null;                                  // an online account is linked (token may have expired)
+const acct = () => (S.meta.account && S.meta.account.token) ? S.meta.account : null; // logged in with a valid session token
+const Net = {
+  enabled() { return !!(ONLINE.url && ONLINE.key); },
+  async rpc(fn, args, ms = 10000) {
+    const ctl = window.AbortController ? new AbortController() : null, to = setTimeout(() => ctl && ctl.abort(), ms);
+    const h = { 'Content-Type': 'application/json', apikey: ONLINE.key };
+    if (/^eyJ/.test(ONLINE.key)) h.Authorization = 'Bearer ' + ONLINE.key; // legacy anon JWT; new publishable keys go in apikey only
+    try {
+      const res = await fetch(ONLINE.url.replace(/\/+$/, '') + '/rest/v1/rpc/' + fn, { method: 'POST', headers: h, body: JSON.stringify(args || {}), signal: ctl ? ctl.signal : undefined });
+      const txt = await res.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) { /* not JSON */ }
+      if (!res.ok) { const m = (j && (j.message || j.error)) || ('HTTP ' + res.status), err = new Error(m); err.server = true; err.code = /bad_session/.test(m) ? 'bad_session' : 'server'; throw err; }
+      S.netOk = true; return j;
+    } catch (e) { if (!e.server) { e.code = 'offline'; S.netOk = false; } throw e; }
+    finally { clearTimeout(to); }
+  },
+};
+const NET_MSG = {
+  username_taken: 'That username is already taken. Pick another, or log in if it\'s yours.',
+  bad_username: 'Usernames are 2–16 characters: letters, numbers, spaces, dots, dashes or underscores.',
+  bad_passcode: 'The passcode must be exactly 4 digits.', mismatch: 'The two passcodes don\'t match.',
+  bad_login: 'Username or passcode is incorrect.', locked: 'Too many wrong passcodes. This account is locked for 15 minutes.',
+  banned: 'This account has been suspended by the game owner.', offline: 'Can\'t reach the game server. Check your connection and try again.',
+  server: 'The game server returned an error. Try again in a moment.', too_large: 'Your save is too large to upload.',
+};
+
+/* ---------- Account screen (first launch / log in) ---------- */
+function routeHome() {
+  const a = acctAny();
+  if (!a && !S.meta.profile.named) showAccount('register');
+  else if (a && !a.token && Net.enabled()) showAccount('login', { name: a.username, expired: true });
+  else if (!S.meta.walkthroughDone) startWalkthrough(true);
+  else showStart();
 }
-function lbParse(o) {
-  if (!o || o.format !== LB_FORMAT || !Array.isArray(o.entries)) return null;
-  return { format: LB_FORMAT, version: 1, reviewedAt: o.reviewedAt || null, reviewedBy: o.reviewedBy || '', total: o.total || o.entries.length, entries: o.entries.map(lbClean).filter(Boolean) };
-}
-const lbTime = b => (b && b.reviewedAt ? Date.parse(b.reviewedAt) || 0 : 0);
-/** Pick the freshest board among embedded / cached / fetched. */
-function lbConsider(b, source, fetchedAt) {
-  if (!b) return;
-  const cur = LB.official;
-  if (!cur || lbTime(b) > lbTime(cur) || (lbTime(b) === lbTime(cur) && b.entries.length > cur.entries.length)) { LB.official = b; LB.source = source; LB.fetchedAt = fetchedAt || null; }
-}
-function lbInit() {
-  try { const el = $('#official-leaderboard'); if (el) lbConsider(lbParse(JSON.parse(el.textContent)), 'embedded'); } catch (e) { /* malformed embedded block */ }
-  const c = Store.get(LB_CACHE); if (c && c.board) lbConsider(lbParse(c.board), 'cache', c.fetchedAt);
-  // Owner's built-but-unpublished board: shown until the published copy is at least as new.
-  const pv = Store.get(LB_PREVIEW); if (pv && pv.board) lbConsider(lbParse(pv.board), 'preview', pv.at);
-  if (!LB.official) LB.official = { format: LB_FORMAT, reviewedAt: null, entries: [] };
-}
-function lbUrl() { return /github\.io$/.test(location.hostname) ? 'leaderboard.json' : LB_CONFIG.jsonUrl; }
-async function lbFetch(silent) {
-  if (LB.loading) return; LB.loading = true; LB.err = null; if (S.overlay === 'leaderboard') renderLeaderboard();
-  let ctl = null, to = null;
-  try {
-    ctl = window.AbortController ? new AbortController() : null; to = setTimeout(() => ctl && ctl.abort(), 8000);
-    const res = await fetch(lbUrl() + '?t=' + Date.now(), { cache: 'no-store', signal: ctl ? ctl.signal : undefined });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const b = lbParse(await res.json()); if (!b) throw new Error('bad format');
-    const now = new Date().toISOString();
-    Store.set(LB_CACHE, { board: b, fetchedAt: now });
-    const pv = Store.get(LB_PREVIEW);
-    if (pv && pv.board && lbTime(b) >= lbTime(pv.board)) Store.del(LB_PREVIEW); // your published board has caught up
-    LB.official = null; lbInit();
-    if (lbTime(b) >= lbTime(LB.official)) { LB.official = b; LB.source = 'live'; LB.fetchedAt = now; } // live copy wins ties
-    if (!silent) toast('Official leaderboard refreshed', 'good');
-  } catch (e) { LB.err = 'offline'; }
-  finally { clearTimeout(to); LB.loading = false; if (S.overlay === 'leaderboard') renderLeaderboard(); }
-}
-/** Convert a run-history record into a leaderboard entry. */
-function lbFromHist(h) {
-  return lbClean({ id: h.id || hashStr(S.meta.profile.id + h.date + h.seed).toString(36), pid: h.pid || S.meta.profile.id, name: S.meta.profile.name, diff: h.diff, shifts: h.shifts, tier: h.tier,
-    acc: h.acc, decisions: h.decisions, prevented: h.prevented, bossWon: h.bossWon, sla: h.sla, cause: h.cause, seed: h.seed, date: h.date });
-}
-/** Rows for a view: best career per player, your unofficial careers merged in live. */
-function lbRows(tab) {
-  const me = S.meta.profile.id, off = LB.official.entries, offIds = new Set(off.map(e => e.id));
-  const mine = S.meta.history.map(lbFromHist).filter(Boolean).map(e => Object.assign(e, { local: true, official: offIds.has(e.id) }));
-  const all = off.map(e => Object.assign({}, e, { mine: e.pid === me })).concat(mine.filter(e => !e.official).map(e => Object.assign(e, { mine: true, unofficial: true })));
-  const pool = tab === 'all' ? all : all.filter(e => e.diff === tab);
-  const best = new Map();
-  pool.forEach(e => { const k = e.pid || e.id, b = best.get(k); if (!b || e.score > b.score || (e.score === b.score && e.date < b.date)) best.set(k, e); });
-  return Array.from(best.values()).sort((a, b) => b.score - a.score || (a.date < b.date ? -1 : 1));
-}
-function lbOfficialRank(tab) {
-  const me = S.meta.profile.id, off = LB.official.entries.filter(e => tab === 'all' || e.diff === tab), best = new Map();
-  off.forEach(e => { const k = e.pid || e.id, b = best.get(k); if (!b || e.score > b.score) best.set(k, e); });
-  const rows = Array.from(best.values()).sort((a, b) => b.score - a.score);
-  const i = rows.findIndex(e => e.pid === me); return i < 0 ? null : { rank: i + 1, of: rows.length, e: rows[i] };
-}
-function tzName() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time'; } catch (e) { return 'local time'; } }
-function showLeaderboard(back = 'menu', selIdx) {
-  LB.back = back; if (selIdx != null) LB.sel = selIdx;
-  renderLeaderboard();
-  lbFetch(true);
-  clearInterval(LB.timer);
-  LB.timer = setInterval(() => { if (S.overlay === 'leaderboard') lbFetch(true); else clearInterval(LB.timer); }, 120000); // live refresh while open
-}
-function renderLeaderboard() {
-  const tab = LB.tab, rows = lbRows(tab), meI = rows.findIndex(r => r.mine), off = LB.official, rev = off.reviewedAt;
-  const offR = lbOfficialRank(tab), H = S.meta.history;
-  const srcTxt = LB.source === 'preview' ? `🔧 Your built preview · ${off.entries.length} entries · <span class="am">not published yet. Commit leaderboard.json and the index.html block so players see it.</span>${LB.loading ? ' · checking GitHub…' : ''}` : LB.loading ? '⟳ Checking GitHub for updates…' : LB.source === 'live' ? `● Live from GitHub · ${off.entries.length} official entries` : LB.source === 'cache' ? `Saved copy from ${fmtDate(LB.fetchedAt, true)} · ${off.entries.length} entries${LB.err ? ' (offline)' : ''}` : `Built-in copy (top ${LB_CONFIG.embeddedTop})${LB.err ? ' · offline, can\'t reach GitHub' : ''}`;
-  const show = rows.slice(0, 100); if (meI >= 100) show.push(rows[meI]);
-  const rowHTML = (r, i) => { const D = diffOf(r.diff), rank = rows.indexOf(r) + 1; return `<div class="lbrow ${r.mine ? 'me' : ''}"><span class="lbrank">${rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : '#' + rank}</span>
-    <div class="lbname"><b>${esc(r.name)}</b>${r.pid && !r.bot ? `<span class="muted mono"> #${esc(r.pid.slice(0, 4))}</span>` : ''} ${r.bot ? '<span class="tag carry" title="Sample score from a bot, not a real player">BOT</span> ' : ''}${r.unofficial ? '<span class="tag nohand">UNOFFICIAL · PENDING REVIEW</span>' : r.mine ? '<span class="tag watch">YOU · OFFICIAL</span>' : ''}
-      <div class="qs">${D.ico} ${D.name} · ${r.shifts} shifts · ${esc(TIER_BADGE[r.tier])} · ${r.acc}% acc · ${(ENDINGS[r.cause] || ['', ''])[0]} · ${fmtDate(r.date)}</div></div>
-    <span class="lbscore">${r.score.toLocaleString()}</span></div>`; };
-  const subOpts = H.map((h, i) => `<option value="${i}" ${i === LB.sel ? 'selected' : ''}>${fmtDate(h.date)} · ${diffOf(h.diff).name} · ${(h.score || 0).toLocaleString()} pts · ${h.shifts} shifts${h.submitted ? ' · submitted' : ''}</option>`).join('');
-  showOverlay('leaderboard', `<div class="panel" style="width:min(940px,calc(var(--sw) * 96))"><div class="panel-h"><h2>🏆 LEADERBOARD</h2><span class="sp"></span><button class="btn sm" data-go="lb-refresh" ${LB.loading ? 'disabled' : ''}>⟳ Refresh</button></div>
-    <div class="lbmeta"><div>📋 <b>Official board last reviewed:</b> ${rev ? `<b class="cy">${fmtDate(rev, true)}</b> <span class="muted">(${esc(tzName())})</span>` : '<span class="am">not reviewed yet</span>'}</div><div class="muted">${srcTxt}</div></div>
-    <div class="ctabs" style="padding:8px 16px 0">${[['all', 'ALL']].concat(DIFF_ORDER.map(k => [k, DIFFS[k].ico + ' ' + DIFFS[k].name.toUpperCase()])).map(([k, l]) => `<button class="ctab ${k === tab ? 'on' : ''}" data-lbtab="${k}">${l}</button>`).join('')}</div>
-    <div class="panel-b">
-      <div class="card" style="margin-bottom:10px;border-color:rgba(62,240,255,.35)"><h4>YOUR STANDING · ${esc(profileName())}</h4>
-        <p>${meI >= 0 ? `Unofficial rank <b class="cy">#${meI + 1}</b> of ${rows.length} · best ${rows[meI].score.toLocaleString()} pts (${diffOf(rows[meI].diff).name})` : 'No finished careers yet. Finish one to see where you rank.'}</p>
-        <p class="muted">${offR ? `Official rank: <b>#${offR.rank}</b> of ${offR.of}${rev ? ' as of ' + fmtDate(rev, true) : ''}.` : 'Not on the official board yet.'} Your new careers show up here instantly as <b>unofficial</b>. They become official once you submit them and the owner reviews and publishes the board, so until then your standing is unofficial.</p></div>
-      ${show.length ? show.map(rowHTML).join('') : '<div class="qempty"><b>NO SCORES YET</b>Be the first on the board.</div>'}
-      ${rows.some(r => r.bot) ? '<p class="muted" style="font-size:13px;margin-top:6px"><span class="tag carry">BOT</span> entries are sample scores to beat, not real players.</p>' : ''}
-      <div class="hosec" style="margin-top:16px">SUBMIT A CAREER FOR REVIEW</div>
-      ${H.length ? `<div class="card"><div class="field" style="margin-bottom:8px"><label>CAREER</label><select id="lbSel">${subOpts}</select></div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px"><button class="btn primary" data-go="lb-issue" title="Needs a free GitHub account">🐙 Submit via GitHub</button>${LB_CONFIG.anonFormUrl ? '<button class="btn" data-go="lb-anon" title="No account, no email: anonymous form">🕶 Submit anonymously</button>' : ''}<button class="btn" data-go="lb-copy">⧉ Copy code</button><button class="btn" data-go="lb-dl">⇩ Download file</button></div>
-        <p class="muted" style="margin-top:8px;font-size:13px">GitHub shows your GitHub username on the public issue.${LB_CONFIG.anonFormUrl ? ' The anonymous form collects no email or account, and the owner\'s contact details stay private.' : ' No GitHub account? Copy the code or download the file and send it to the owner through the channel they list in the README.'} Codes contain only your callsign, profile tag and career stats.</p></div>`
-      : '<p class="muted">Finish a career to submit it.</p>'}
+function showAccount(mode = 'register', opts = {}) {
+  S.acctMode = mode;
+  const online = Net.enabled(), reg = mode === 'register';
+  const nm = opts.name || (S.meta.profile.named ? S.meta.profile.name : '');
+  const pin = id => `<input type="password" id="${id}" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="${reg ? 'new-password' : 'current-password'}" placeholder="••••" class="accin pin">`;
+  showOverlay('account', `<div class="panel" style="width:min(560px,calc(var(--sw) * 94))"><div class="title-screen" style="padding:24px 24px 14px">
+    <div class="sub">HALCYON DYNAMICS · SECURITY OPERATIONS CENTER</div>
+    <h1 style="margin-top:8px;font-size:34px">SIGNAL<span>//</span>NOISE</h1>
+    ${online ? `<div class="ctabs" style="justify-content:center;margin-top:16px;border:none"><button class="ctab ${reg ? 'on' : ''}" data-go="acc-reg">NEW ANALYST</button><button class="ctab ${reg ? '' : 'on'}" data-go="acc-login">LOG IN</button></div>` : ''}
+    <p style="margin:12px auto 4px;max-width:440px">${opts.expired ? 'Your session expired. Please log in again.' : reg ? 'Pick a <b>username</b> and a <b>4-digit passcode</b>. Your username goes on your badge, your profile and the leaderboards. Don\'t use your real full name.' : 'Welcome back. Log in to load your progress from the cloud.'}</p>
+    <div class="accform">
+      <label>USERNAME<input type="text" id="accUser" maxlength="16" autocomplete="username" value="${esc(nm)}" placeholder="e.g. NightHawk" class="accin"></label>
+      ${reg && online ? '<div id="accAvail" class="muted" style="min-height:18px;font-size:13px;text-align:left"></div>' : ''}
+      <label>PASSCODE (4 DIGITS)${pin('accPass')}</label>
+      ${reg ? `<label>CONFIRM PASSCODE${pin('accPass2')}</label>` : ''}
     </div>
-    <div class="panel-f"><button class="btn ghost" data-go="${LB.back === 'pause' ? 'pause' : 'menu'}">← Back</button><span class="sp"></span><button class="btn sm ghost" data-go="owner" title="For the game owner: review submissions and publish the board">🔧 Owner tools</button></div></div>`);
+    <div id="accMsg" class="am" style="min-height:22px;font-size:13.5px;margin-top:4px"></div>
+    <button class="btn primary lg" id="accBtn" data-go="acc-submit" data-primary="1">${reg ? 'CREATE ACCOUNT ▶' : 'LOG IN ▶'}</button>
+    <p class="muted" style="margin-top:12px;font-size:12.5px;max-width:440px;margin-left:auto;margin-right:auto">${online
+      ? (reg ? 'Your progress saves to the cloud, so you can log in on any device. A 4-digit passcode is light protection: don\'t reuse a real PIN. Forgot it? Ask the game owner to reset it.' : 'Forgot your passcode? Ask the game owner to reset it.')
+      : 'Online accounts aren\'t set up for this copy of the game, so your username and passcode are saved on this device only and leaderboards show local scores.'}</p>
+    <p class="muted" style="font-size:12.5px;margin-top:6px"><button class="btn sm ghost" data-go="load-acc">⇪ Load a profile file</button>${online ? '<button class="btn sm ghost" data-go="acc-offline">Play offline</button>' : ''}</p>
+  </div></div>`);
+  const u = $('#accUser'), p = $('#accPass'); (nm && p ? p : u).focus();
+  $$('.pin').forEach(x => x.addEventListener('input', () => { x.value = x.value.replace(/\D/g, '').slice(0, 4); }));
+  $$('.accin').forEach(x => x.addEventListener('keydown', e => { if (e.key === 'Enter') submitAccount(); }));
+  if (reg && online) u.addEventListener('input', () => {
+    clearTimeout(S._availT); const v = u.value.trim(), el = $('#accAvail');
+    if (v.length < 2) { el.textContent = ''; return; }
+    S._availT = setTimeout(async () => {
+      try { const r = await Net.rpc('sn_available', { p_username: v }); if ($('#accAvail') && $('#accUser').value.trim() === v) el.innerHTML = r && r.available ? '<span class="gr">✓ Available</span>' : '<span class="rd">✗ Taken</span>'; }
+      catch (e) { if ($('#accAvail')) el.textContent = ''; }
+    }, 450);
+  });
 }
-/* ---- Submissions ---- */
-function b64u(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
-function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
-function encodeSub(e) { const j = JSON.stringify(e); return 'SNLB1.' + b64u(j) + '.' + hashStr('snlb|' + j).toString(36); }
-function decodeSubs(text) {
-  const out = [], re = /SNLB1\.([A-Za-z0-9_-]+)\.([a-z0-9]+)/g; let m;
-  while ((m = re.exec(text))) {
-    try { const j = unb64u(m[1]), ok = hashStr('snlb|' + j).toString(36) === m[2], raw = JSON.parse(j), e = lbClean(raw); out.push({ e, raw, ok: ok && !!e }); }
-    catch (err) { out.push({ e: null, ok: false }); }
+async function submitAccount() {
+  const reg = S.acctMode === 'register', msg = t => { const m = $('#accMsg'); if (m) m.innerHTML = t; };
+  const u = ($('#accUser').value || '').trim().replace(/\s+/g, ' '), p = $('#accPass').value, p2 = reg ? $('#accPass2').value : p;
+  if (!/^[A-Za-z0-9_. -]{2,16}$/.test(u)) return msg(NET_MSG.bad_username);
+  if (!/^\d{4}$/.test(p)) return msg(NET_MSG.bad_passcode);
+  if (p !== p2) return msg(NET_MSG.mismatch);
+  if (!Net.enabled()) { // local-only account
+    S.meta.profile.name = u; S.meta.profile.named = true; S.meta.localPass = hashStr('sn|' + u.toLowerCase() + '|' + p).toString(36);
+    saveMeta(); renderDesk(); Sound.good(); toast('Welcome, ' + u, 'good'); return routeHome();
   }
-  return out;
+  const btn = $('#accBtn'); btn.disabled = true; msg('<span class="cy">Contacting the SOC server…</span>');
+  try {
+    const res = await Net.rpc(reg ? 'sn_register' : 'sn_login', { p_username: u, p_passcode: p });
+    if (!res || res.error) { msg(NET_MSG[res && res.error] || 'Something went wrong.'); return; }
+    if (reg) { setAccount(res); Sound.good(); toast('Account created. Welcome, ' + res.username, 'good'); cloudSave(true); routeHome(); }
+    else afterLogin(res);
+  } catch (e) { msg(NET_MSG[e.code] || e.message); }
+  finally { const b = $('#accBtn'); if (b) b.disabled = false; }
 }
-function lbSelected() { const i = +(($('#lbSel') || {}).value || 0); LB.sel = i; const h = S.meta.history[i]; return h ? { h, e: lbFromHist(h) } : null; }
-function lbMarkSubmitted(h) { h.submitted = true; saveMeta(); }
-function lbSubmit(kind) {
-  const x = lbSelected(); if (!x) return;
-  const { h, e } = x, code = encodeSub(e), D = diffOf(e.diff);
-  if (kind === 'issue') {
-    const title = `Leaderboard submission: ${e.name} — ${e.score.toLocaleString()} pts (${D.name})`;
-    const body = `**Callsign:** ${e.name} (#${e.pid.slice(0, 4)})\n**Score:** ${e.score.toLocaleString()}\n**Difficulty:** ${D.name}\n**Shifts:** ${e.shifts} · **Tier:** ${TIERS[e.tier]} · **Accuracy:** ${e.acc}% · **Ending:** ${ENDINGS[e.cause][1]}\n**Seed:** ${e.seed}\n\nSubmission code (please don't edit):\n\n\`\`\`\n${code}\n\`\`\`\n`;
-    window.open(`https://github.com/${LB_CONFIG.repo}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`, '_blank', 'noopener');
-    lbMarkSubmitted(h); toast('Opening GitHub: press "Submit new issue" there', 'good');
-  } else if (kind === 'anon' && LB_CONFIG.anonFormUrl) {
-    window.open(LB_CONFIG.anonFormUrl.replace('{CODE}', encodeURIComponent(code)), '_blank', 'noopener');
-    lbMarkSubmitted(h); toast('Opening the anonymous form: press Submit there', 'good');
-  } else if (kind === 'copy') {
-    const done = () => { lbMarkSubmitted(h); toast('Submission code copied', 'good'); };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => showCode(code));
-    else showCode(code);
-  } else if (kind === 'dl') {
-    downloadText(`signal-noise-score-${e.name.replace(/[^\w-]+/g, '-')}-${e.score}.txt`, `SIGNAL//NOISE leaderboard submission\n${e.name} · ${e.score} pts · ${D.name}\n\n${code}\n`);
-    lbMarkSubmitted(h);
-  }
-  renderLeaderboard();
+function setAccount(res) {
+  S.meta.account = { username: res.username, token: res.token, pid: res.player_id, since: new Date().toISOString(), syncedAt: S.meta.account && S.meta.account.pid === res.player_id ? S.meta.account.syncedAt : null };
+  S.meta.profile.name = res.username; S.meta.profile.named = true; S.meta.profile.id = res.player_id;
+  saveMeta(); renderDesk();
 }
-function showCode(code) { modal({ title: 'SUBMISSION CODE', body: `<p>Copy this code and send it to the game owner:</p><textarea readonly style="width:100%;height:120px;background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:8px;color:var(--text);font:12px var(--mono);padding:8px" onclick="this.select()">${esc(code)}</textarea>` }); }
-function downloadText(name, text, type = 'text/plain') {
-  const blob = new Blob([text], { type }), url = URL.createObjectURL(blob), a = document.createElement('a');
-  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast('Downloaded ' + name, 'good');
+function localHasProgress() { return S.meta.history.length > 0 || S.meta.lp > 0 || !!getSavedRun(); }
+function afterLogin(res) {
+  const cloud = res.save && res.save.meta ? res.save : null;
+  const sameAcct = S.meta.account && S.meta.account.pid === res.player_id;
+  const localNewer = sameAcct && (S.meta.outbox || []).some(x => x.key === 'save');
+  const finish = useCloud => {
+    if (useCloud && cloud) applyCloud(cloud, res); else { setAccount(res); cloudSave(true); }
+    flushOutbox(); Sound.good(); toast('Welcome back, ' + res.username, 'good');
+    closeOverlay(); if (S.run && !S.run.ended) resumeRun(); else routeHome();
+  };
+  if (!cloud) return finish(false);
+  if (sameAcct) return finish(!localNewer);
+  if (!localHasProgress()) return finish(true);
+  const cm = cloud.meta || {}, when = res.save_updated ? fmtDate(res.save_updated, true) : 'unknown';
+  modal({
+    title: 'WHICH PROGRESS DO YOU WANT?', ico: '☁', body: `<p>This device already has progress, and so does your account.</p>
+      <div class="grid2"><div class="card"><h4>☁ CLOUD SAVE</h4><p>Saved ${esc(when)}<br>${(cm.history || []).length} careers · ${cm.lp || 0} LP${cloud.run ? ' · career in progress' : ''}</p></div>
+      <div class="card"><h4>💻 THIS DEVICE</h4><p>${S.meta.history.length} careers · ${S.meta.lp} LP${getSavedRun() ? ' · career in progress' : ''}</p></div></div>
+      <p class="muted" style="margin-top:8px">The one you don't choose is replaced. Not sure? Use the cloud save, and download this device's profile first if you want a backup.</p>`,
+    buttons: [{ label: '⇩ Backup this device', cls: 'ghost', keep: true, fn() { downloadSave(); } }, { label: 'Keep this device', fn() { finish(false); } }, { label: 'Use cloud save', cls: 'primary', fn() { finish(true); } }],
+  });
+}
+function applyCloud(cloud, res) {
+  S.meta = normalizeMeta(cloud.meta); S.meta.outbox = [];
+  setAccount(res);
+  if (cloud.run && !cloud.run.ended) { S.run = normalizeRun(cloud.run); Store.set(SAVE_RUN, S.run); } else { S.run = null; Store.del(SAVE_RUN); }
+  S.suspended = null; applySettings(); saveMeta();
+}
+function sessionExpired() {
+  if (!S.meta.account || !S.meta.account.token) return;
+  S.meta.account.token = null; saveMeta();
+  toast('Your login expired. Log in again to keep syncing.', 'warn');
+  if (!isLive()) showAccount('login', { name: S.meta.account.username, expired: true });
 }
 
-/* ---- Owner tools: review submissions → publish files to commit on GitHub ---- */
-const OWN = { pending: [], keep: null, built: null };
-function showOwnerTools() {
-  if (!OWN.built) { const pv = Store.get(LB_PREVIEW); if (pv && pv.board && LB.source === 'preview') OWN.built = pv.board; } // restore download buttons after a reload
-  if (!OWN.keep) OWN.keep = new Set(LB.official.entries.map(e => e.id));
-  const off = LB.official, offIds = new Set(off.entries.map(e => e.id));
-  const flags = (p) => { const e = p.e, f = []; if (!p.ok) f.push('corrupt or edited code'); if (e) { if (p.raw && p.raw.score != null && +p.raw.score !== e.score) f.push('score didn\'t match stats (recalculated)'); if (e.acc > 100 || e.prevented > e.decisions + 50) f.push('implausible stats'); if (e.date && Date.parse(e.date) > Date.now() + 864e5) f.push('future date'); if (offIds.has(e.id)) f.push('already on the board'); } return f; };
-  const pend = OWN.pending.map((p, i) => { const f = flags(p), e = p.e; return `<label class="hoitem"><input type="checkbox" data-own-ap="${i}" ${p.approve ? 'checked' : ''} ${e ? '' : 'disabled'}><div><div class="ht">${e ? `<b>${esc(e.name)}</b> #${esc(e.pid.slice(0, 4))} · ${e.score.toLocaleString()} pts · ${diffOf(e.diff).name} · ${e.shifts} shifts · ${fmtDate(e.date)}` : 'Unreadable code'}</div><div class="hs">${f.length ? '<span class="am">⚠ ' + f.join(' · ') + '</span>' : '<span class="gr">✓ valid</span>'}</div></div></label>`; }).join('');
-  const ex = off.entries.slice().sort((a, b) => b.score - a.score).map(e => `<label class="hoitem"><input type="checkbox" data-own-keep="${esc(e.id)}" ${OWN.keep.has(e.id) ? 'checked' : ''}><div><div class="ht"><b>${esc(e.name)}</b>${e.bot ? ' <span class="tag carry">BOT</span>' : ''} #${esc(e.pid.slice(0, 4))} · ${e.score.toLocaleString()} pts · ${diffOf(e.diff).name}</div><div class="hs">${e.shifts} shifts · ${fmtDate(e.date)} · uncheck to remove</div></div></label>`).join('');
-  showOverlay('owner', `<div class="panel" style="width:min(900px,calc(var(--sw) * 96))"><div class="panel-h"><h2>🔧 OWNER TOOLS: PUBLISH LEADERBOARD</h2></div><div class="panel-b">
-    <p class="muted">Only the repo owner can publish, because publishing means committing files to GitHub. Anyone can open this screen, but it only creates files on their own computer.</p>
-    <ol class="wlist" style="margin:8px 0 12px"><li>Collect submission codes (from GitHub issues, your anonymous form responses, or files people sent you).</li><li>Paste them all below (you can paste whole issue pages or spreadsheet exports; codes are found automatically) or add files.</li><li>Review, tick what to approve, then <b>Build</b>.</li><li>Commit <span class="mono">leaderboard.json</span> to your repo, and replace the block between <span class="mono">LEADERBOARD:BEGIN</span> and <span class="mono">LEADERBOARD:END</span> in <span class="mono">index.html</span>.</li></ol>
-    <div class="card" style="margin-bottom:10px"><h4>CURRENT OFFICIAL BOARD</h4><p>${off.entries.length} entries · reviewed ${off.reviewedAt ? fmtDate(off.reviewedAt, true) : 'never'}  · source: ${LB.source === "preview" ? "your unpublished preview" : LB.source}${LB.source !== "live" && LB.source !== "preview" ? ' <span class="am">(refresh from GitHub first so you don\'t overwrite newer entries)</span>' : ''}</p><button class="btn sm" data-go="lb-refresh">⟳ Refresh from GitHub</button></div>
-    <div class="field"><label>PASTE SUBMISSIONS</label><textarea id="ownIn" style="width:100%;height:110px;background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:8px;color:var(--text);font:12px var(--mono);padding:8px" placeholder="Paste text containing SNLB1.… codes"></textarea>
-      <div style="display:flex;gap:6px;margin-top:6px"><button class="btn sm primary" data-go="own-parse">Find codes</button><button class="btn sm" data-go="own-files">Add files…</button><input type="file" id="ownFiles" multiple accept=".txt,.json,.csv,.md" class="hidden"><button class="btn sm ghost" data-go="own-clear">Clear</button></div></div>
-    <div class="hosec">PENDING (${OWN.pending.length})</div>${pend || '<p class="muted">Nothing pending.</p>'}
-    <div class="hosec" style="margin-top:12px">EXISTING OFFICIAL ENTRIES (${off.entries.length})</div><div style="max-height:220px;overflow:auto">${ex || '<p class="muted">None yet.</p>'}</div>
-    ${OWN.built ? `<div class="card owned" style="margin-top:12px"><h4>✔ BUILT: ${OWN.built.entries.length} entries, reviewed ${fmtDate(OWN.built.reviewedAt, true)}</h4>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"><button class="btn primary" data-go="own-dljson">⇩ leaderboard.json</button><button class="btn" data-go="own-copyblock">⧉ Copy index.html block (top ${LB_CONFIG.embeddedTop})</button><button class="btn" data-go="own-dlblock">⇩ Download block</button></div>
-      <p class="muted" style="margin-top:6px">This board is now previewed in your Leaderboard screen (on this browser only). Players see it after you commit both files and GitHub Pages redeploys (usually 1–2 minutes). The preview clears itself once GitHub has the new board.</p><button class="btn sm ghost" data-go="own-discard" style="margin-top:4px">✕ Discard preview</button></div>` : ''}
-  </div><div class="panel-f"><button class="btn ghost" data-go="leaderboard">← Back to leaderboard</button><span class="sp"></span><button class="btn primary" data-go="own-build">Build updated board</button></div></div>`);
-  $('#ownFiles').addEventListener('change', async ev => { let t = ''; for (const f of ev.target.files) t += '\n' + await f.text(); ownAdd(t); });
+/* ---------- Cloud save + outbox (anything not yet uploaded survives reloads & offline) ---------- */
+function cloudPayload() {
+  if (S.run && !S.run.ended) Store.set(SAVE_RUN, S.run);
+  const run = getSavedRun(), m = Object.assign({}, S.meta); delete m.account; delete m.outbox;
+  return { meta: m, run: run && !run.ended ? run : null, savedAt: new Date().toISOString() };
 }
-function ownAdd(text) {
-  const found = decodeSubs(text || ''); if (!found.length) { toast('No submission codes found', 'warn'); return; }
-  const have = new Set(OWN.pending.filter(p => p.e).map(p => p.e.id)), offIds = new Set(LB.official.entries.map(e => e.id));
-  let n = 0; found.forEach(p => { if (p.e && have.has(p.e.id)) return; p.approve = p.ok && p.e && !offIds.has(p.e.id); OWN.pending.push(p); if (p.e) have.add(p.e.id); n++; });
-  toast(n + ' submission(s) added', 'good'); showOwnerTools();
+function queueOut(key, fn, args) {
+  if (!acctAny() || !Net.enabled()) return;
+  S.meta.outbox = (S.meta.outbox || []).filter(x => x.key !== key); S.meta.outbox.push({ key, fn, args });
+  Store.set(SAVE_META, S.meta);
 }
-function ownBuild() {
-  const keep = LB.official.entries.filter(e => OWN.keep.has(e.id)), add = OWN.pending.filter(p => p.approve && p.e).map(p => p.e);
-  const map = new Map(); keep.concat(add).forEach(e => map.set(e.id, e));
-  const entries = Array.from(map.values()).sort((a, b) => b.score - a.score || (a.date < b.date ? -1 : 1));
-  OWN.built = { format: LB_FORMAT, version: 1, reviewedAt: new Date().toISOString(), reviewedBy: LB_CONFIG.repo.split('/')[0], total: entries.length, entries };
-  Store.set(LB_PREVIEW, { board: OWN.built, at: OWN.built.reviewedAt });
-  LB.official = lbParse(OWN.built); LB.source = 'preview'; LB.fetchedAt = OWN.built.reviewedAt;
-  OWN.pending = OWN.pending.filter(p => !(p.approve && p.e)); OWN.keep = new Set(entries.map(e => e.id));
-  Sound.good(); showOwnerTools();
+/** Upload the whole profile (throttled to once a minute unless forced). */
+function cloudSave(force) {
+  if (!acctAny() || !Net.enabled()) return;
+  const now = Date.now(), wait = 60000 - (now - (S._lastCloud || 0));
+  if (!force && wait > 0) { if (!S._cloudT) S._cloudT = setTimeout(() => { S._cloudT = null; cloudSave(true); }, wait); return; }
+  S._lastCloud = now; queueOut('save', 'sn_save', {}); flushOutbox();
 }
-function ownBlock() {
-  const b = OWN.built, top = Object.assign({}, b, { entries: b.entries.slice(0, LB_CONFIG.embeddedTop) });
-  const lt = '<', cmt = lt + '!--', sc = lt + 'script', esc2 = lt + '/script>'; // split so the inline script element isn't terminated early
-  return `${cmt} LEADERBOARD:BEGIN (generated ${b.reviewedAt}; top ${LB_CONFIG.embeddedTop} of ${b.entries.length}) -->\n${sc} type="application/json" id="official-leaderboard">${JSON.stringify(top).replace(/</g, '\\u003c')}${esc2}\n${cmt} LEADERBOARD:END -->`;
+function flushOutbox() {
+  if (S._flushP) return S._flushP;
+  const p = (async () => {
+    await Promise.resolve(); // always yield first, so the busy flag below is set before we finish
+    try {
+      while ((S.meta.outbox || []).length && acct()) {
+        const it = S.meta.outbox[0], args = Object.assign({ p_token: acct().token }, it.args);
+        if (it.fn === 'sn_save') args.p_data = cloudPayload();
+        try {
+          await Net.rpc(it.fn, args);
+          S.meta.outbox.shift(); if (it.fn === 'sn_save' && S.meta.account) S.meta.account.syncedAt = new Date().toISOString();
+          Store.set(SAVE_META, S.meta);
+        } catch (e) { if (e.code === 'bad_session') sessionExpired(); else if (e.code === 'server') { S.meta.outbox.shift(); Store.set(SAVE_META, S.meta); } break; }
+      }
+    } catch (e) { /* keep queued items for the next attempt */ }
+  })();
+  S._flushP = p; p.then(() => { if (S._flushP === p) S._flushP = null; });
+  return p;
+}
+/** Live run total → Runs leaderboard (and Careers leaderboard once status is 'ended'). */
+function runPayload(status, cause) {
+  const r = S.run, st = r.stats;
+  return { id: r.runId, diff: r.diff, seed: r.seed, status, cause: cause || null, shifts: r.shiftCount, tier: r.tier,
+    acc: st.decisions ? Math.round(st.correct / st.decisions * 100) : 0, decisions: st.decisions, prevented: st.prevented,
+    boss_won: st.bossWon, sla: st.sla, grade_pts: st.gradePts || 0, last_grade: (st.shiftGrades || []).slice(-1)[0] || null, started_at: r.startedAt };
+}
+function postRun(status, cause) {
+  if (!S.run || !acctAny() || !Net.enabled()) return;
+  queueOut('run:' + S.run.runId, 'sn_post_run', { p_run: runPayload(status, cause) }); flushOutbox();
+}
+function logout() {
+  const doIt = async () => {
+    const a = S.meta.account;
+    try { if (a && a.token) await Net.rpc('sn_logout', { p_token: a.token }, 5000); } catch (e) { /* offline: token expires on its own */ }
+    const settings = S.meta.settings;
+    Store.del(SAVE_RUN); S.run = null; S.suspended = null; S.meta = defaultMeta(); S.meta.settings = settings;
+    saveMeta(); closeAllModals(); renderAll(); toast('Logged out', 'good'); showAccount('login');
+  };
+  modal({
+    title: 'LOG OUT?', ico: '🔒', body: '<p>Your progress is saved to the cloud first, then this device is cleared so someone else can log in. Log back in any time with your username and passcode.</p>',
+    buttons: [{ label: 'Cancel', cls: 'ghost' }, { label: 'Log out', cls: 'danger', async fn() {
+      if (acct()) { toast('Saving to the cloud…'); cloudSave(true); await flushOutbox(); }
+      if ((S.meta.outbox || []).length) modal({ title: 'NOT SYNCED YET', ico: '⚠', body: '<p>Some progress couldn\'t be uploaded (you may be offline). Logging out now would lose it on this device.</p>', buttons: [{ label: 'Cancel', cls: 'ghost' }, { label: '⇩ Download profile first', keep: true, fn() { downloadSave(); } }, { label: 'Log out anyway', cls: 'danger', fn: doIt }] });
+      else doIt();
+    } }],
+  });
+}
+function changePasscode() {
+  modal({ title: 'CHANGE PASSCODE', ico: '🔑', body: '<div class="accform"><label>CURRENT PASSCODE<input type="password" id="cpOld" inputmode="numeric" maxlength="4" class="accin pin"></label><label>NEW PASSCODE<input type="password" id="cpNew" inputmode="numeric" maxlength="4" class="accin pin"></label><label>CONFIRM NEW<input type="password" id="cpNew2" inputmode="numeric" maxlength="4" class="accin pin"></label></div><div id="cpMsg" class="am" style="min-height:20px;margin-top:6px"></div>',
+    buttons: [{ label: 'Cancel', cls: 'ghost' }, { label: 'Change', cls: 'primary', keep: true, async fn(back, close) {
+      const o = $('#cpOld').value, n = $('#cpNew').value, n2 = $('#cpNew2').value, m = t => $('#cpMsg').innerHTML = t;
+      if (!/^\d{4}$/.test(n)) return m(NET_MSG.bad_passcode); if (n !== n2) return m(NET_MSG.mismatch);
+      try { const r = await Net.rpc('sn_change_passcode', { p_token: acct().token, p_old: o, p_new: n }); if (r && r.error) return m(NET_MSG[r.error]); close(); toast('Passcode changed', 'good'); }
+      catch (e) { if (e.code === 'bad_session') { close(); sessionExpired(); } else m(NET_MSG[e.code] || e.message); }
+    } }] });
+}
+function accountCardHTML() {
+  const a = acctAny(), online = Net.enabled();
+  if (a) return `<div class="card" style="margin-bottom:12px;border-color:rgba(62,240,255,.4)"><h4>🌐 ONLINE ACCOUNT</h4><p>Logged in as <b class="cy">${esc(a.username)}</b>${a.token ? '' : ' <span class="am">(session expired)</span>'} · ${a.syncedAt ? 'last cloud save ' + fmtDate(a.syncedAt, true) : 'not synced yet'}${(S.meta.outbox || []).length ? ` · <span class="am">${S.meta.outbox.length} update(s) waiting to upload</span>` : ''}</p>
+    <div class="row"><span class="sp"></span>${a.token ? '<button class="btn sm" data-go="acc-sync">☁ Sync now</button><button class="btn sm" data-go="acc-pass">🔑 Change passcode</button>' : '<button class="btn sm primary" data-go="acc-login">Log in again</button>'}<button class="btn sm danger" data-go="acc-logout">Log out</button></div></div>`;
+  return `<div class="card" style="margin-bottom:12px"><h4>👤 ${online ? 'OFFLINE PROFILE' : 'LOCAL PROFILE'}</h4><p>Playing as <b class="cy">${esc(profileName())}</b>${online ? ' on this device only. Create an account to claim your name, save to the cloud and appear on the live leaderboards. Your current progress comes with you.' : '. Online accounts aren\'t set up for this copy of the game.'}</p>
+    ${online ? '<div class="row"><span class="sp"></span><button class="btn sm" data-go="acc-login">Log in</button><button class="btn sm primary" data-go="acc-reg">Create account</button></div>' : `<div class="field" style="margin:8px 0 0"><label>USERNAME</label><div style="display:flex;gap:6px"><input type="text" id="pName" maxlength="16" value="${esc(profileName())}" style="flex:1"><button class="btn" data-go="pname">Save</button></div></div>`}</div>`;
+}
+
+/* =====================================================================
+   18f. LEADERBOARDS — Runs (live, every run) & Careers (finished runs)
+   Online: Supabase sn_leaderboard, refreshed on open + every 30 s.
+   Offline / not configured: sample bots (embedded) + this device's scores.
+   ===================================================================== */
+const LB_STORE = 'signalnoise.lb.v2';
+const LB = { kind: 'runs', tab: 'all', cache: null, loading: false, err: null, timer: null, back: 'menu' };
+function lbClean(e) { // used for the embedded sample (bot) entries
+  if (!e || typeof e !== 'object') return null;
+  const n = (v, a, b) => clamp(Math.round(+v || 0), a, b);
+  const out = { id: String(e.id || '').slice(0, 24), name: String(e.name || 'Analyst').replace(/[^\w .\-]/g, '').slice(0, 16), diff: DIFFS[e.diff] ? e.diff : 'standard',
+    shifts: n(e.shifts, 0, 500), tier: n(e.tier, 0, 4), acc: n(e.acc, 0, 100), decisions: n(e.decisions, 0, 20000), prevented: n(e.prevented, 0, 5000),
+    bossWon: n(e.bossWon, 0, 200), sla: n(e.sla, 0, 20000), gradePts: n(e.gradePts, 0, 50000), cause: ENDINGS[e.cause] ? e.cause : 'resigned', date: String(e.date || ''), bot: e.bot === true };
+  out.score = careerScore(out); return out;
+}
+function lbSample() { try { const o = JSON.parse($('#official-leaderboard').textContent); return (o.entries || []).map(lbClean).filter(Boolean); } catch (e) { return []; } }
+/** Offline rows: sample bots + this device's finished careers (+ current run on the Runs board). */
+function lbLocalRows() {
+  const me = profileName(), mine = S.meta.history.map(h => ({ name: me, diff: h.diff, shifts: h.shifts, tier: h.tier, acc: h.acc, prevented: h.prevented, status: 'ended', cause: h.cause, last_grade: (h.shiftGrades || []).slice(-1)[0], score: h.score || careerScore(h), updated_at: h.date, mine: true }));
+  const live = lbCurrentRun(); if (LB.kind === 'runs' && live) mine.push(live);
+  const bots = lbSample().map(b => ({ name: b.name, bot: true, diff: b.diff, shifts: b.shifts, tier: b.tier, acc: b.acc, prevented: b.prevented, status: 'ended', cause: b.cause, score: b.score, updated_at: b.date }));
+  const pool = bots.concat(mine.filter(x => !x.mine || true)).filter(x => LB.tab === 'all' || x.diff === LB.tab);
+  const best = {}; pool.forEach(x => { const k = x.mine ? '__me' : x.name; if (!best[k] || x.score > best[k].score) best[k] = x; });
+  return Object.values(best).sort((a, b) => b.score - a.score).map((x, i) => Object.assign(x, { rank: i + 1 }));
+}
+/** The run in progress, scored with the same formula the server uses. */
+function lbCurrentRun() {
+  const r = S.run && !S.run.ended ? S.run : getSavedRun(); if (!r || !r.stats) return null;
+  const st = r.stats, e = { diff: r.diff, shifts: r.shiftCount, tier: r.tier, acc: st.decisions ? Math.round(st.correct / st.decisions * 100) : 0, decisions: st.decisions, prevented: st.prevented, bossWon: st.bossWon, sla: st.sla, gradePts: st.gradePts || 0 };
+  return { name: profileName(), diff: r.diff, shifts: r.shiftCount, tier: r.tier, acc: e.acc, prevented: st.prevented, status: 'active', score: careerScore(e), last_grade: (st.shiftGrades || []).slice(-1)[0], updated_at: new Date().toISOString(), mine: true, id: r.runId };
+}
+function lbKey() { return LB.kind + '|' + LB.tab; }
+async function lbFetch(manual) {
+  if (!Net.enabled()) { renderLeaderboard(); return; }
+  if (LB.loading) return; LB.loading = true; renderLeaderboard();
+  await flushOutbox(); // post anything pending first, so you see your latest shift
+  const key = lbKey();
+  try {
+    const res = await Net.rpc('sn_leaderboard', { p_kind: LB.kind, p_diff: LB.tab === 'all' ? null : LB.tab, p_limit: 100, p_player: acctAny() ? acctAny().pid : null });
+    LB.cache[key] = { data: res, at: new Date().toISOString() }; Store.set(LB_STORE, LB.cache); LB.err = null;
+    if (manual) toast('Leaderboard refreshed', 'good');
+  } catch (e) { LB.err = e.code || 'offline'; if (manual) toast(NET_MSG[LB.err] || 'Refresh failed', 'warn'); }
+  finally { LB.loading = false; renderLeaderboard(); }
+}
+function showLeaderboard(back) {
+  LB.back = back || LB.back || 'menu'; LB.cache = LB.cache || Store.get(LB_STORE) || {};
+  renderLeaderboard(true); lbFetch(false);
+  clearInterval(LB.timer);
+  LB.timer = setInterval(() => { if (S.overlay === 'leaderboard') lbFetch(false); else clearInterval(LB.timer); }, 30000);
+}
+function tzName() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time'; } catch (e) { return 'local time'; } }
+function timeAgo(iso) { const s = (Date.now() - Date.parse(iso)) / 1000; if (!isFinite(s)) return ''; if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + 'm ago'; if (s < 86400) return Math.floor(s / 3600) + 'h ago'; return Math.floor(s / 86400) + 'd ago'; }
+function renderLeaderboard(force) {
+  if (!LB.cache) LB.cache = Store.get(LB_STORE) || {};
+  if (!force && S.overlay !== 'leaderboard') return; // background refreshes never yank the player away from another screen
+  const online = Net.enabled(), c = LB.cache[lbKey()], data = online && c ? c.data : null, a = acctAny();
+  let rows, total, meRank = null, src;
+  if (data) {
+    rows = (data.rows || []).map(x => Object.assign({}, x, { mine: !!(a && x.player_id === a.pid) })); total = data.total; meRank = data.me;
+    src = LB.loading ? '⟳ Updating…' : LB.err ? `⚠ ${NET_MSG[LB.err] || 'Offline'} Showing the copy from ${fmtDate(c.at, true)}.` : `<span class="gr">● LIVE</span> · refreshed ${fmtDate(c.at, true)} · auto-refreshes every 30 s`;
+  } else {
+    rows = lbLocalRows(); total = rows.length; const mr = rows.find(x => x.mine); meRank = mr ? { rank: mr.rank, score: mr.score } : null;
+    src = online ? (LB.loading ? '⟳ Connecting to the leaderboard…' : `⚠ ${NET_MSG[LB.err] || 'Can\'t reach the server.'} Showing sample bots and this device's scores.`) : 'Online leaderboards aren\'t set up for this copy of the game. Showing sample bots and this device\'s scores.';
+  }
+  const live = lbCurrentRun(), pending = (S.meta.outbox || []).filter(x => x.fn === 'sn_post_run').length;
+  const liveRank = live ? rows.filter(x => !x.mine && x.score > live.score).length + 1 : null;
+  const last = data && data.updated_at ? `🕒 Last leaderboard activity: <b class="cy">${fmtDate(data.updated_at, true)}</b> <span class="muted">(${esc(tzName())})</span>` : '';
+  const rowHTML = x => { const D = diffOf(x.diff), rk = x.rank; return `<div class="lbrow ${x.mine ? 'me' : ''}"><span class="lbrank">${rk <= 3 ? ['🥇', '🥈', '🥉'][rk - 1] : '#' + rk}</span>
+    <div class="lbname"><b>${esc(x.name)}</b> ${x.bot ? '<span class="tag carry" title="Sample score, not a real player">BOT</span>' : ''}${x.mine ? '<span class="tag watch">YOU</span>' : ''}${x.status === 'active' ? '<span class="tag livetag">● LIVE RUN</span>' : ''}
+      <div class="qs">${D.ico} ${D.name} · ${x.shifts} shifts · ${esc(TIER_BADGE[x.tier] || '')} · ${x.acc}% acc${x.last_grade ? ` · last shift <b style="color:${GRADE_COLOR[x.last_grade]}">${x.last_grade}</b>` : ''}${x.status === 'ended' && ENDINGS[x.cause] ? ' · ' + ENDINGS[x.cause][0] + ' ' + ENDINGS[x.cause][1] : ''} · ${timeAgo(x.updated_at)}</div></div>
+    <span class="lbscore">${(x.score || 0).toLocaleString()}</span></div>`; };
+  const kinds = [['runs', '🏃 RUNS · LIVE'], ['careers', '🏆 CAREERS']];
+  showOverlay('leaderboard', `<div class="panel" style="width:min(940px,calc(var(--sw) * 96))"><div class="panel-h"><h2>🏆 LEADERBOARDS</h2><span class="sp"></span><button class="btn sm" data-go="lb-refresh" ${LB.loading ? 'disabled' : ''}>⟳ Refresh</button></div>
+    <div class="ctabs" style="padding:8px 16px 0">${kinds.map(([k, l]) => `<button class="ctab ${k === LB.kind ? 'on' : ''}" data-lbkind="${k}">${l}</button>`).join('')}</div>
+    <div class="lbmeta"><div>${src}</div>${last ? `<div>${last}</div>` : ''}<div class="muted">${LB.kind === 'runs' ? 'Every run, including ones still in progress. Scores post automatically each time an analyst clocks out of a shift. Best run per analyst.' : 'Finished careers only, showing each run\'s final score. Best career per analyst.'}</div></div>
+    <div class="ctabs" style="padding:6px 16px 0">${[['all', 'ALL']].concat(DIFF_ORDER.map(k => [k, DIFFS[k].ico + ' ' + DIFFS[k].name.toUpperCase()])).map(([k, l]) => `<button class="ctab ${k === LB.tab ? 'on' : ''}" data-lbtab="${k}">${l}</button>`).join('')}</div>
+    <div class="panel-b">
+      <div class="card" style="margin-bottom:10px;border-color:rgba(62,240,255,.35)"><h4>YOUR STANDING · ${esc(profileName())}</h4>
+        <p>${meRank ? `Best ${LB.kind === 'runs' ? 'run' : 'career'}: rank <b class="cy">#${meRank.rank}</b> of ${total} · ${(meRank.score || 0).toLocaleString()} pts` : `No ${LB.kind === 'runs' ? 'runs' : 'finished careers'} on this board yet.`}</p>
+        ${live && LB.kind === 'runs' ? `<p>Current run: <b>${live.score.toLocaleString()} pts</b> after ${live.shifts} shift${live.shifts === 1 ? '' : 's'} (${diffOf(live.diff).name}), which would place you <b class="cy">#${liveRank}</b>.</p>` : ''}
+        <p class="muted" style="font-size:13px">${!online ? 'Scores are only on this device.' : !a ? 'You\'re playing offline: <button class="btn sm" data-go="acc-reg">Create an account</button> to post your scores.' : !a.token ? '<span class="am">Your login expired, so scores aren\'t posting.</span> <button class="btn sm" data-go="acc-login">Log in</button>' : pending ? `<span class="am">${pending} score update(s) waiting to post. They'll upload when you're back online.</span>` : '✓ Your scores post automatically after every shift.'}</p></div>
+      ${rows.length ? rows.map(rowHTML).join('') : '<div class="qempty"><b>NO SCORES YET</b>Clock out of a shift to get on the board.</div>'}
+      ${rows.some(x => x.bot) ? '<p class="muted" style="font-size:13px;margin-top:6px"><span class="tag carry">BOT</span> entries are sample scores to beat, not real players.</p>' : ''}
+    </div>
+    <div class="panel-f"><button class="btn ghost" data-go="${LB.back === 'pause' ? 'pause' : 'menu'}">← Back</button><span class="sp"></span><span class="muted mono" style="font-size:12px">${total} analyst${total === 1 ? '' : 's'}</span></div></div>`);
 }
 
 /* =====================================================================
@@ -3422,9 +3554,8 @@ function bindInput() {
   });
   $('#overlay').addEventListener('click', e => {
     if (S.overlay === 'walk' && walkClick(e)) return;
-    const lt = e.target.closest('[data-lbtab]'); if (lt) { LB.tab = lt.dataset.lbtab; renderLeaderboard(); return; }
-    const oa = e.target.closest('[data-own-ap]'); if (oa) { OWN.pending[+oa.dataset.ownAp].approve = oa.checked; return; }
-    const ok2 = e.target.closest('[data-own-keep]'); if (ok2) { if (ok2.checked) OWN.keep.add(ok2.dataset.ownKeep); else OWN.keep.delete(ok2.dataset.ownKeep); return; }
+    const lt = e.target.closest('[data-lbtab]'); if (lt) { LB.tab = lt.dataset.lbtab; renderLeaderboard(); lbFetch(false); return; }
+    const lk = e.target.closest('[data-lbkind]'); if (lk) { LB.kind = lk.dataset.lbkind; renderLeaderboard(); lbFetch(false); return; }
     const g = e.target.closest('[data-go]'), buy = e.target.closest('[data-buy]'), ah = e.target.closest('[data-act-home]'), ce = e.target.closest('[data-cert]');
     if (buy) { const u = UNLOCKS.find(x => x.id === buy.dataset.buy); if (u && S.meta.lp >= u.cost) { S.meta.lp -= u.cost; S.meta.unlocks[u.id] = true; saveMeta(); if (UNLOCKS.every(x => S.meta.unlocks[x.id])) grantAch('allunlocks'); Sound.good(); toast('Unlocked: ' + u.name, 'good'); showUnlocks(); } return; }
     if (ah) { doHome(ah.dataset.actHome); return; }
@@ -3446,28 +3577,23 @@ function bindInput() {
       case 'load2': showLoadScreen('pause'); break;
       case 'download': downloadSave(); break;
       case 'cards': closeOverlay(); showCardsModal(); break;
+      case 'shifthist': closeOverlay(); showShiftHistory(S.run.shiftLog, 'This run'); break;
+      case 'shifthist-home': showShiftHistory(S.run.shiftLog, 'This run'); break;
       case 'fullscreen': toggleFullscreen(); break;
-      case 'cs-ok': submitCallsign(); break;
-      case 'load-cs': showLoadScreen('callsign'); break;
-      case 'callsign': showCallsign(); break;
+      case 'load-acc': showLoadScreen('account'); break;
+      case 'account': showAccount(S.acctMode || 'register'); break;
+      case 'acc-submit': submitAccount(); break;
+      case 'acc-reg': showAccount('register'); break;
+      case 'acc-login': showAccount('login', { name: acctAny() ? acctAny().username : '' }); break;
+      case 'acc-offline': S.meta.profile.named = true; if (!S.meta.profile.name) S.meta.profile.name = 'Analyst'; saveMeta(); toast('Playing offline. Create an account any time from your Profile.', 'warn'); routeHome(); break;
+      case 'acc-logout': logout(); break;
+      case 'acc-pass': changePasscode(); break;
+      case 'acc-sync': cloudSave(true); flushOutbox().then(() => { toast((S.meta.outbox || []).length ? 'Couldn\'t reach the server' : 'Synced to the cloud', (S.meta.outbox || []).length ? 'warn' : 'good'); if (S.overlay === 'profile') showProfile('stats', S.profileBack); }); break;
       case 'tutorial': startWalkthrough(false); break;
       case 'leaderboard': showLeaderboard(LB.back || 'menu'); break;
       case 'leaderboard2': showLeaderboard('pause'); break;
-      case 'lb-refresh': lbFetch(false); if (S.overlay === 'owner') setTimeout(showOwnerTools, 1500); break;
-      case 'lb-issue': lbSubmit('issue'); break;
-      case 'lb-anon': lbSubmit('anon'); break;
-      case 'lb-copy': lbSubmit('copy'); break;
-      case 'lb-dl': lbSubmit('dl'); break;
-      case 'lb-submit-last': showLeaderboard('menu', 0); break;
-      case 'owner': showOwnerTools(); break;
-      case 'own-parse': ownAdd($('#ownIn').value); break;
-      case 'own-files': $('#ownFiles').click(); break;
-      case 'own-clear': OWN.pending = []; OWN.built = null; showOwnerTools(); break;
-      case 'own-build': ownBuild(); break;
-      case 'own-discard': Store.del(LB_PREVIEW); OWN.built = null; OWN.keep = null; LB.official = null; lbInit(); lbFetch(true); toast('Preview discarded', 'warn'); showOwnerTools(); break;
-      case 'own-dljson': downloadText('leaderboard.json', JSON.stringify(OWN.built, null, 1), 'application/json'); break;
-      case 'own-dlblock': downloadText('leaderboard-block.html', ownBlock(), 'text/html'); break;
-      case 'own-copyblock': { const t = ownBlock(); if (navigator.clipboard) navigator.clipboard.writeText(t).then(() => toast('Block copied: paste it over the old one in index.html', 'good'), () => showCode(t)); else showCode(t); break; }
+      case 'lb-refresh': lbFetch(true); break;
+      case 'lb-summary': LB.kind = 'careers'; showLeaderboard('menu'); break;
       case 'walk-next': walkNext(); break;
       case 'walk-back': if (S.walk && S.walk.i > 0) { S.walk.i--; renderWalk(); } break;
       case 'walk-close': S.walk = null; showStart(); break;
@@ -3486,7 +3612,7 @@ function bindInput() {
       case 'savequit': save(); closeAllModals(); S.suspended = S.run; S.run = null; S.paused = false; renderAll(); showStart(); break;
       case 'menuFromHome': save(); S.suspended = S.run; S.run = null; renderAll(); showStart(); break;
       case 'resign': modal({ title: 'RESIGN?', ico: '✖', body: '<p>End this run now? You will still earn Legacy Points for what you achieved.</p>', buttons: [{ label: 'Cancel', cls: 'ghost' }, { label: 'Resign', cls: 'danger', fn() { closeOverlay(); endRun('resigned'); } }] }); break;
-      case 'reset': modal({ title: 'RESET PROGRESS', ico: '⚠', body: '<p>Delete all unlocks, Legacy Points, achievements and the current run?</p>', buttons: [{ label: 'Cancel', cls: 'ghost' }, { label: 'Delete everything', cls: 'danger', fn() { Store.del(SAVE_RUN); Store.del(SAVE_META); S.suspended = null; S.meta = defaultMeta(); applySettings(); S.run = null; renderAll(); routeHome(); } }] }); break;
+      case 'reset': modal({ title: 'RESET PROGRESS', ico: '⚠', body: `<p>Delete all unlocks, Legacy Points, achievements, history and the current run?${acctAny() ? ' This also resets your <b>cloud save</b>. Your account and leaderboard scores stay.' : ''}</p>`, buttons: [{ label: 'Cancel', cls: 'ghost' }, { label: 'Delete everything', cls: 'danger', fn() { const keepAcct = S.meta.account; Store.del(SAVE_RUN); Store.del(SAVE_META); S.suspended = null; S.meta = defaultMeta(); if (keepAcct) { S.meta.account = keepAcct; S.meta.profile.name = keepAcct.username; S.meta.profile.id = keepAcct.pid; S.meta.profile.named = true; } applySettings(); S.run = null; saveMeta(); cloudSave(true); renderAll(); routeHome(); } }] }); break;
       case 'work': backToWork(); break;
       case 'promote': promote(); break;
       case 'retire': endRun('retired'); break;
@@ -3578,7 +3704,8 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 function boot() {
-  buildKeyboard(); bindInput(); fit(); applySettings(); lbInit(); renderAll(); saveMeta(); routeHome();
+  buildKeyboard(); bindInput(); fit(); applySettings(); renderAll(); saveMeta(); routeHome();
+  flushOutbox(); window.addEventListener('online', () => flushOutbox());
   requestAnimationFrame(frame);
 }
 boot();
