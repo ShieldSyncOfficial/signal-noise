@@ -25,7 +25,7 @@ The whole interface scales to fit whatever window it's in, from a small laptop w
 Open the GitHub Pages link in your phone's browser. On narrow or short screens the game switches to a **touch layout**: one screen at a time, with a bottom tab bar for **Queue**, **Case** (investigation) and **Comms**, plus a ☕ coffee button. Badges show open alerts and unread messages, and tapping an alert opens it straight in Case. Portrait and landscape both work.
 
 ### 📲 Add it to your home screen
-Tap **📲 Add to Home Screen** on the main menu for step-by-step help. On Chrome/Edge it shows the install prompt directly; on iPhone use **Share → Add to Home Screen**. It then opens full-screen with its own icon like an app. You still need an internet connection to start it, and it checks for updates every time it opens.
+Open **⚙ Settings → 📲 Add to home screen** for step-by-step help. On Chrome/Edge it shows the install prompt directly; on iPhone use **Share → Add to Home Screen**. It then opens full-screen with its own icon like an app. You still need an internet connection to start it, and it checks for updates every time it opens.
 
 <p>
   <img src="screenshots/mobile-queue.png" width="260" alt="Mobile alert queue">
@@ -69,7 +69,7 @@ Every shift ends with three grades:
 | **Handoff** | Including every open ticket, real IOC and important system note, and leaving out junk |
 | **Shift grade** | **60% Decisions + 40% Handoff** (A ≥ 90 · B ≥ 75 · C ≥ 60 · D ≥ 40) |
 
-The shift report breaks down exactly what earned or cost points, and the shift grade adds points to your run score. **📋 Shift history** (pause menu, days-off screen and each past run in your profile) lists every shift's grades.
+The shift report breaks down exactly what earned or cost points, and the shift grade adds points to your run score. **Profile → Shift history** lists every shift of your current career with its grades; finished careers keep theirs under **Run history**.
 
 ![Shift report](screenshots/shift-report.png)
 
@@ -170,7 +170,7 @@ With an online account, your scores post **automatically**. There's no submittin
 - Progress saves to the cloud automatically (after each shift, at the end of a run, and about once a minute while playing). If you're offline, uploads wait and go through when you reconnect.
 - **Profile → Log out** saves to the cloud and clears the device, so someone else can use it. **Change passcode** is there too. Forgot your passcode? Ask the game owner to reset it.
 - After 5 wrong passcodes an account locks for 15 minutes. A 4-digit passcode is light protection, so don't reuse a real PIN.
-- **Profile → ⇩ Save Profile / ⇪ Load Profile** still download and restore a backup file (drag and drop works too). Files never contain your login.
+- **Profile → ⇩ Save Profile / ⇪ Load Profile** download and restore a backup file (drag and drop works too). Files never contain your login.
 
 ---
 ## 👤 Profile, achievements & run history
@@ -194,10 +194,12 @@ Every run uses a seeded RNG. The seed appears on the sticky note on your desk, i
 ## ⚙ Settings
 
 - Clock speed (1–3 in-game minutes per real second)
-- Sound effects, synthesized with the Web Audio API and **muted by default**
+- Sound on/off (**off by default**) with Effects, Ambience and Music volume sliders
+- Fullscreen switch (where the browser supports it)
 - Reduced motion
 - CRT scanlines on/off
 - Text & interface size (Normal / Large / Extra large)
+- App: version, ⟳ Check for updates, 📲 Add to home screen, 💬 Send feedback
 
 Progress is saved in `localStorage` and the game pauses itself when you switch tabs. If storage is unavailable (e.g., some private-browsing modes), the game still runs, and a saved profile file keeps your progress.
 
@@ -240,6 +242,23 @@ To make the game easier or harder, start with these:
 - `GAME_VERSION`: the version number (keep it in step with `version.json`)
 - `CARDS`: shift card effects, stack limits and curse payouts
 - `ACH`: achievements, their LP rewards and lifetime progress goals
+
+---
+
+## 🔊 Sound
+
+Sound is off by default. Turn it on in **Settings** (or press <kbd>M</kbd>). Everything is synthesized in the browser, with no audio files:
+- **Effects:** alert chimes by severity, keyboard taps while you run queries, message pings, the desk phone, coffee, ticket closes, cards, promotions and achievements
+- **Ambience:** server-room hum, air conditioning, distant keyboards, and rain on night shifts
+- **Music:** a slow generative synth track that picks up when critical alerts are open and during major incidents
+
+Each has its own volume slider. On iPhone, the ring/silent switch must be off to hear browser audio.
+
+---
+
+## 💬 Feedback & bug reports
+
+**⚙ Settings → 💬 Send feedback** (or **💬 Feedback** at the bottom of the main menu) sends a bug report, suggestion or other message straight to the owner. You can attach up to 3 screenshots or screen recordings (25 MB total), leave optional contact details, and include game details (version, device and where you are in the game) to help reproduce bugs. No account is needed.
 
 ---
 

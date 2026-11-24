@@ -338,7 +338,17 @@ body.no-scan .screen::after{display:none}
 .field label{font:700 12px var(--mono);letter-spacing:.12em;color:var(--muted)}
 .field input[type=text],.field select{background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:7px;padding:8px 10px;font-family:var(--mono)}
 .toggle{display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:10px}
-.toggle input{accent-color:var(--cyan);width:16px;height:16px}
+.toggle input{appearance:none;-webkit-appearance:none;flex:none;width:44px;height:24px;border-radius:99px;background:#1a2333;border:1px solid var(--line);position:relative;cursor:pointer;transition:background .2s,border-color .2s;margin:0}
+.toggle input::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#8a97ad;transition:transform .2s,background .2s}
+.toggle input:checked{background:rgba(62,240,255,.28);border-color:var(--cyan)}
+.toggle input:checked::after{transform:translateX(20px);background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.toggle input:disabled{opacity:.4;cursor:not-allowed}
+.toggle input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.toggle small{display:block;color:var(--muted);font-size:12px}
+.vol{display:grid;grid-template-columns:110px 1fr 42px;align-items:center;gap:10px;margin:0 0 8px 54px;font-size:13.5px}
+.vol input{accent-color:var(--cyan);width:100%}
+.vol.off{opacity:.45}
+.sethead{font:700 12px var(--mono);letter-spacing:.14em;color:var(--muted);margin:14px 0 8px;padding-top:10px;border-top:1px solid var(--line)}
 .howto h3{font:700 14px var(--mono);letter-spacing:.1em;color:var(--cyan);margin:14px 0 6px}
 .howto p,.howto li{font-size:14.5px;color:var(--text)}
 .howto li{margin-left:18px;margin-bottom:3px}
@@ -472,6 +482,18 @@ body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 .has-upd .modal-back{padding-top:62px}
 #stage.mobile.has-upd .modal-back{padding-top:118px}
 .modal .mono.cy{word-break:break-all}
+.lbrow.skel{height:62px;background:linear-gradient(90deg,rgba(255,255,255,.03),rgba(255,255,255,.08),rgba(255,255,255,.03));background-size:200% 100%;animation:skel 1.2s linear infinite;margin-bottom:6px}
+@keyframes skel{to{background-position:-200% 0}}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+.field textarea{background:rgba(0,0,0,.35);border:1px solid var(--line-2);border-radius:7px;padding:8px 10px;font:inherit;color:inherit;resize:vertical;min-height:110px}
+.fbdrop{display:flex;flex-direction:column;align-items:center;gap:3px;padding:16px;border:1.5px dashed var(--line-2);border-radius:10px;cursor:pointer;text-align:center;transition:border-color .2s,background .2s}
+.fbdrop:hover,.fbdrop.over,.fbdrop:focus-visible{border-color:var(--cyan);background:rgba(62,240,255,.07);outline:none}
+.fblist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.fbfile{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;padding:6px;border:1px solid var(--line);border-radius:8px;background:rgba(0,0,0,.25)}
+.fbfile img,.fbfile video{width:64px;height:44px;object-fit:cover;border-radius:5px;background:#000}
+.fbfile b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbfile .bar{margin-top:4px}
+.fbstatus{margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(62,240,255,.08);border:1px solid var(--line)}
 .lbgap{text-align:center;color:var(--muted);font:600 12px var(--mono);letter-spacing:.14em;margin:8px 0 4px}
 /* Account screen */
 .accform{display:flex;flex-direction:column;gap:8px;max-width:340px;margin:14px auto 0;text-align:left}
@@ -765,7 +787,7 @@ function defaultMeta() {
     life: { runs: 0, shifts: 0, decisions: 0, correct: 0, prevented: 0, sla: 0, bosses: 0, bossWon: 0, nights: 0, cards: 0, endings: {} },
     history: [], lastDiff: 'beginner', walkthroughDone: false,
     best: { shifts: 0, tier: 0, accuracy: 0 },
-    settings: { speed: 1.5, sound: false, reduced: false, scan: true, text: 'normal' },
+    settings: { speed: 1.5, sound: false, reduced: false, scan: true, text: 'normal', volFx: .8, volAmb: .5, volMus: .4 },
   };
 }
 function loadMeta() {
@@ -1675,7 +1697,7 @@ function openTab(a, tab) {
   if (!a || !isLive()) return;
   S.ui.tab = tab;
   if (a.status === 'open' && !a.tabs[tab] && a.ev[tab].length) {
-    a.tabs[tab] = true; spend(TAB_COST[tab] * timeMult(), 1);
+    a.tabs[tab] = true; Sound.query(); spend(TAB_COST[tab] * timeMult(), 1);
     if (!S.run || S.run.ended) return;
     tut('tab');
   }
@@ -1789,7 +1811,7 @@ function applyFeedback(f) {
   if (o.st > 0) addStress(o.st);
   if (tk) { tk.res = o.ok ? 'good' : (o.res === 'missed' ? 'pend' : 'bad'); tk.note = o.msg || ''; }
   if (o.msg) chat(o.res === 'overesc' || o.res === 'good' || o.res === 'great' || o.res === 'partial' ? 't2' : 'mgr', o.msg + (rep ? ` (Rep ${rep > 0 ? '+' : ''}${Math.round(rep * 10) / 10})` : ''));
-  if (o.res === 'great') Sound.good(); else if (!o.ok && o.res !== 'missed') Sound.bad();
+  if (o.res === 'great') Sound.good(); else if (o.ok || o.res === 'missed') Sound.ticket(); else Sound.bad();
   dirty(0, 1, 1);
 }
 
@@ -1806,7 +1828,7 @@ function sip() {
   r.caf = clamp(r.caf + 18, 0, 100);
   r.crash += 6 * mods().crash * (night ? 1.5 : 1) * (hasU('barista') ? .6 : 1) * (r.training.cafdisc ? .6 : 1);
   addStress(r.caf > 60 ? 1.5 : .5);
-  Sound.blip(520);
+  Sound.sip();
   toast(`☕ +${Math.round(13 * bar * nm)} energy${night ? ' (night boost)' : ''}`, 'good');
   tut('sip');
   renderDesk(); renderHUD();
@@ -1815,7 +1837,7 @@ function refill() {
   if (!isLive()) return;
   const r = S.run, s = r.shift;
   if (s.coffeeBroken && !hasU('barista')) { toast('Coffee machine is broken. Thoughts and prayers.', 'warn'); return; }
-  r.mug = 100; toast('Mug refilled', 'good');
+  r.mug = 100; toast('Mug refilled', 'good'); Sound.pour();
   spend(hasU('barista') ? 3 : 8, 0);
   renderDesk();
 }
@@ -1858,6 +1880,7 @@ function buildHandoffItems() {
   return items;
 }
 function finalizeShift(sel) {
+  Sound.shiftEnd();
   const r = S.run, s = r.shift, R = makeRng(r.seed + '|fin' + s.idx);
   let score = 0, max = 0, noise = 0, omittedImp = [];
   const inc = new Set(sel);
@@ -1963,7 +1986,7 @@ function canPromote() {
 }
 function promote() {
   const r = S.run, c = canPromote(); if (!c || !c.ok) return;
-  r.tier++; addRep(3); Sound.good();
+  r.tier++; addRep(3); Sound.fanfare();
   grantAch(['', 't2', 't3', 'lead', 'soclead'][r.tier]);
   toast('Promoted to ' + TIERS[r.tier] + '!', 'good');
   S.meta.best.tier = Math.max(S.meta.best.tier, r.tier);
@@ -1977,7 +2000,7 @@ function grantAch(id, inRun) {
   const isNew = !S.meta.ach[id];
   if (live) r.achRun[id] = isNew ? 'new' : 'again';
   if (isNew) {
-    S.meta.ach[id] = new Date().toISOString(); toast('🏆 ' + ACH[id].name, 'good'); Sound.good();
+    S.meta.ach[id] = new Date().toISOString(); toast('🏆 ' + ACH[id].name, 'good'); Sound.ach();
     if (!live) { S.meta.lp += ACH[id].lp; S.meta.lpTotal += ACH[id].lp; saveMeta(); }
   }
 }
@@ -1987,7 +2010,7 @@ function grantAch(id, inRun) {
    --------------------------------------------------------------------- */
 function endRun(cause, detail) {
   const r = S.run; if (!r || r.ended) return;
-  r.ended = true; S.paused = false; S.ff = false;
+  r.ended = true; S.paused = false; S.ff = false; Sound.gameOver(cause === 'retired');
   const st = r.stats, acc = st.decisions ? st.correct / st.decisions : 0;
   // Lifetime totals + lifetime achievements (these count toward this run's LP)
   const Lf = S.meta.life;
@@ -2247,7 +2270,7 @@ function offerCards() {
   s.cpDone++;
   const ids = drawCards(makeRng(r.seed + '|cards' + s.idx + '|' + k), 3);
   if (!ids.length) return;
-  Sound.good();
+  Sound.card();
   const m = modal({
     title: `SHIFT CHECKPOINT ${k + 1}/3 — CHOOSE A CARD`, ico: '🃏', wide: true,
     body: `<p class="muted">${fmtClock(s.base + s.t)} · A moment to regroup. Pick one card: it lasts for the <b>rest of this career</b>. Curses make things harder but pay out Career Points now and Legacy Points when the run ends.</p><div class="cards">${ids.map((id, i) => cardHTML(CARD_BY[id], i)).join('')}</div>`,
@@ -2268,7 +2291,7 @@ function takeCard(id) {
   S._modsKey = null;
   chat('sys', `${d.ico} Card taken: ${d.name} — ${d.desc}`);
   toast(`${d.ico} ${d.name}`, d.t === 'curse' ? 'bad' : d.t === 'trade' ? 'warn' : 'good');
-  Sound.click(); dirty(); save();
+  if (d.t === 'curse') Sound.bad(); else Sound.card(); dirty(); save();
 }
 function cardListHTML() {
   const r = S.run;
@@ -2315,33 +2338,180 @@ function applyTutHL() {
 /* =====================================================================
    16. AUDIO — Web Audio synth, muted by default
    ===================================================================== */
+/* ---------------------------------------------------------------------
+   16. AUDIO — everything is synthesized with the Web Audio API (no files).
+   Three buses: effects, ambience (server room, HVAC, keyboards, night rain)
+   and generative music. Off by default; volumes live in Settings.
+   --------------------------------------------------------------------- */
 const Sound = {
-  ctx: null,
+  ctx: null, buses: null, noiseBuf: null, amb: null, mus: null, unlocked: false,
   ensure() {
     if (!S.meta.settings.sound) return null;
     try {
-      if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; this.ctx = new AC(); }
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (!this.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+        try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* Safari only */ }
+        const c = this.ctx = new AC();
+        const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 4; comp.connect(c.destination);
+        const master = c.createGain(); master.gain.value = .9; master.connect(comp);
+        const mk = () => { const g = c.createGain(); g.gain.value = 0; g.connect(master); return g; };
+        this.buses = { master, fx: mk(), amb: mk(), mus: mk() };
+        const len = c.sampleRate * 2, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+        this.noiseBuf = b; this.setLevels();
+      }
+      if (this.ctx.state === 'suspended' && !document.hidden) this.ctx.resume();
       return this.ctx;
     } catch (e) { return null; }
   },
-  tone(f, d = .12, type = 'sine', v = .04, when = 0) {
+  setLevels() {
+    if (!this.buses) return; const st = S.meta.settings, c = this.ctx, t = c.currentTime, on = st.sound ? 1 : 0;
+    const v = (x, d) => (x == null ? d : x);
+    this.buses.fx.gain.setTargetAtTime(on * v(st.volFx, .8) * 1.9, t, .05);
+    this.buses.amb.gain.setTargetAtTime(on * v(st.volAmb, .5) * .55, t, .3);
+    this.buses.mus.gain.setTargetAtTime(on * v(st.volMus, .4) * (S.paused && isLive() ? .45 : 1) * .5, t, .3);
+  },
+  /** Called whenever settings, pause or visibility change. */
+  sync() {
+    if (!S.meta.settings.sound) { if (this.ctx) { this.setLevels(); this.stopLoops(); setTimeout(() => { if (!S.meta.settings.sound && this.ctx) this.ctx.suspend(); }, 400); } return; }
+    if (!this.unlocked) return;            // browsers need a tap/click first
+    const c = this.ensure(); if (!c) return;
+    this.setLevels();
+    if (!this.amb && (S.meta.settings.volAmb ?? .5) > 0) this.startAmbience();
+    if (!this.mus && (S.meta.settings.volMus ?? .4) > 0) this.startMusic();
+  },
+  unlock() {
+    if (this.unlocked) return; this.unlocked = true;
+    const c = this.ensure(); if (!c) { this.unlocked = false; return; }
+    try { const s = c.createBufferSource(); s.buffer = c.createBuffer(1, 1, 22050); s.connect(c.destination); s.start(0); } catch (e) { /* iOS unlock */ }
+    this.sync();
+  },
+  stopLoops() {
+    [this.amb, this.mus].forEach(l => { if (l) { clearInterval(l.timer); clearTimeout(l.tt); (l.nodes || []).forEach(n => { try { n.stop(); } catch (e) { } }); } });
+    this.amb = this.mus = null;
+  },
+
+  /* ---------- building blocks ---------- */
+  tone(f, d = .12, type = 'sine', v = .2, when = 0, opt = {}) {
     const c = this.ensure(); if (!c) return;
     try {
-      const o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime + when;
-      o.type = type; o.frequency.value = f;
-      g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(v, t0 + .01); g.gain.exponentialRampToValueAtTime(.0001, t0 + d);
-      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + .05);
+      const o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime + when, bus = opt.bus || this.buses.fx;
+      o.type = type; o.frequency.setValueAtTime(f, t0);
+      if (opt.to) o.frequency.exponentialRampToValueAtTime(opt.to, t0 + (opt.glide || d));
+      if (opt.detune) o.detune.value = opt.detune;
+      const a = opt.a || .006;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(v, t0 + a); g.gain.exponentialRampToValueAtTime(.0001, t0 + a + d);
+      let out = g;
+      if (opt.lp) { const f2 = c.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = opt.lp; g.connect(f2); out = f2; }
+      o.connect(g); out.connect(bus); o.start(t0); o.stop(t0 + a + d + .05);
     } catch (e) { /* ignore */ }
   },
-  alert(sev) { if (sev === 0) this.tone(440, .08); else if (sev === 1) this.tone(560, .1); else if (sev === 2) { this.tone(700, .1, 'square', .03); this.tone(880, .1, 'square', .03, .12); } else for (let i = 0; i < 3; i++) this.tone(980, .09, 'sawtooth', .035, i * .14); },
-  click() { this.tone(1200, .03, 'square', .015); },
-  blip(f) { this.tone(f, .06, 'triangle', .03); },
-  good() { this.tone(660, .1); this.tone(990, .14, 'sine', .04, .1); },
-  bad() { this.tone(180, .25, 'sawtooth', .035); },
-  ring() { for (let i = 0; i < 6; i++) this.tone(1400, .07, 'square', .02, i * .09 + (i > 2 ? .3 : 0)); },
-  alarm() { for (let i = 0; i < 4; i++) this.tone(i % 2 ? 620 : 880, .18, 'sawtooth', .04, i * .2); },
+  noise(d = .1, v = .2, when = 0, opt = {}) {
+    const c = this.ensure(); if (!c) return;
+    try {
+      const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(), t0 = c.currentTime + when;
+      s.buffer = this.noiseBuf; s.loop = true; f.type = opt.type || 'bandpass'; f.frequency.setValueAtTime(opt.f || 2000, t0); f.Q.value = opt.q || 1;
+      if (opt.fTo) f.frequency.exponentialRampToValueAtTime(opt.fTo, t0 + d);
+      const a = opt.a || .004;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(v, t0 + a); g.gain.exponentialRampToValueAtTime(.0001, t0 + a + d);
+      s.connect(f); f.connect(g); g.connect(opt.bus || this.buses.fx); s.start(t0, Math.random() * 1.5); s.stop(t0 + a + d + .05);
+    } catch (e) { /* ignore */ }
+  },
+  bell(f, v = .16, when = 0, d = .9) { this.tone(f, d, 'sine', v, when); this.tone(f * 2.76, d * .35, 'sine', v * .25, when); this.tone(f * 5.4, d * .15, 'sine', v * .1, when); },
+
+  /* ---------- effects ---------- */
+  click() { this.noise(.025, .26, 0, { f: 3800, q: 2.5 }); this.tone(2100, .02, 'square', .03); },
+  key() { this.noise(.03, .12 + Math.random() * .06, 0, { f: 2400 + Math.random() * 1600, q: 3 }); this.tone(130 + Math.random() * 40, .02, 'sine', .05); },
+  typing(n = 6) { for (let i = 0; i < n; i++) setTimeout(() => this.key(), i * (55 + Math.random() * 60)); },
+  blip(f) { this.tone(f, .09, 'triangle', .16); this.tone(f * 2, .05, 'sine', .05, .01); },
+  query() { this.typing(4 + Math.floor(Math.random() * 3)); this.tone(1320, .05, 'sine', .07, .32); },
+  msg() { this.tone(988, .07, 'sine', .13); this.tone(1319, .12, 'sine', .11, .07); },
+  alert(sev) {
+    if (sev === 0) this.bell(660, .1);
+    else if (sev === 1) { this.bell(660, .12); this.bell(880, .12, .12); }
+    else if (sev === 2) { for (let i = 0; i < 2; i++) { this.tone(740, .11, 'square', .11, i * .26, { lp: 2400 }); this.tone(988, .11, 'square', .11, i * .26 + .12, { lp: 2400 }); } }
+    else { for (let i = 0; i < 3; i++) this.tone(520, .2, 'sawtooth', .15, i * .28, { to: 1040, glide: .18, lp: 3000 }); }
+  },
+  ticket() { this.noise(.05, .12, 0, { f: 1800, q: 1.2 }); this.tone(784, .1, 'triangle', .1, .03); },
+  good() { [523, 659, 784].forEach((f, i) => this.bell(f, .14, i * .08, .6)); },
+  bad() { this.tone(220, .3, 'sawtooth', .12, 0, { to: 110, glide: .3, lp: 900 }); this.tone(233, .3, 'sawtooth', .08, 0, { to: 116, glide: .3, lp: 900 }); },
+  ring() { for (let r = 0; r < 2; r++) for (let i = 0; i < 12; i++) { const t = r * 1.1 + i * .05; this.tone(i % 2 ? 1320 : 1660, .045, 'square', .1, t, { lp: 3500 }); } },
+  alarm() { for (let i = 0; i < 4; i++) this.tone(600, .32, 'sawtooth', .15, i * .36, { to: 1150, glide: .3, lp: 2800 }); },
+  sip() { this.noise(.35, .14, 0, { type: 'lowpass', f: 900, fTo: 300 }); this.tone(180, .08, 'sine', .14, .32, { to: 120 }); },
+  pour() { this.noise(.9, .12, 0, { f: 700, fTo: 1800, q: .8, a: .08 }); },
+  card() { this.noise(.12, .16, 0, { f: 4000, fTo: 1200, q: .7 }); this.tone(1046, .12, 'triangle', .08, .08); },
+  shiftStart() { [392, 523, 659].forEach((f, i) => this.bell(f, .13, i * .14, .8)); },
+  shiftEnd() { [784, 659, 523, 392].forEach((f, i) => this.bell(f, .12, i * .13, .9)); },
+  ach() { [523, 659, 784, 1046].forEach((f, i) => this.bell(f, .14, i * .09, .9)); this.tone(1568, .5, 'triangle', .06, .36); },
+  fanfare() { [[392, 0], [523, .14], [659, .28], [784, .42], [1046, .62]].forEach(([f, t]) => { this.tone(f, .35, 'sawtooth', .07, t, { lp: 2600 }); this.bell(f, .1, t, .7); }); },
+  gameOver(win) { if (win) return this.fanfare(); [440, 349, 294, 220].forEach((f, i) => this.tone(f, .55, 'triangle', .14, i * .3, { lp: 1600 })); },
+
+  /* ---------- ambience: server room hum, HVAC, distant keyboards, night rain ---------- */
+  startAmbience() {
+    const c = this.ensure(); if (!c || this.amb) return;
+    const bus = this.buses.amb, nodes = [], L = this.amb = { nodes };
+    const src = (type, f, q, v) => { const s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(); s.buffer = this.noiseBuf; s.loop = true; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.value = v; s.connect(fl); fl.connect(g); g.connect(bus); s.start(0, Math.random() * 2); nodes.push(s); return { g, fl }; };
+    src('lowpass', 180, .7, .5);                         // rumble
+    const hvac = src('bandpass', 520, .6, .12);          // air handling
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = .07; lg.gain.value = .05; lfo.connect(lg); lg.connect(hvac.g.gain); lfo.start(); nodes.push(lfo);
+    [60, 120, 180].forEach((f, i) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; g.gain.value = [.05, .025, .01][i]; o.connect(g); g.connect(bus); o.start(); nodes.push(o); });
+    const rain = src('highpass', 1800, .5, 0); L.rain = rain;
+    const tick = () => {
+      if (!this.amb) return;
+      const night = isNight(), t = c.currentTime;
+      rain.g.gain.setTargetAtTime(night ? .14 : 0, t, 2);
+      if (night && Math.random() < .5) this.noise(.02, .08, Math.random(), { f: 3000 + Math.random() * 3000, q: 6, bus });
+      if (Math.random() < .16) for (let i = 0, n = 5 + Math.floor(Math.random() * 10); i < n; i++) this.noise(.025, .035, i * (.07 + Math.random() * .08), { f: 2200 + Math.random() * 1400, q: 3, bus });
+    };
+    L.timer = setInterval(tick, 1000);
+  },
+
+  /* ---------- music: slow generative lo-fi synth, intensity follows the shift ---------- */
+  startMusic() {
+    const c = this.ensure(); if (!c || this.mus) return;
+    const bus = this.buses.mus, L = this.mus = { nodes: [], step: 0, next: c.currentTime + .1 };
+    const echo = c.createDelay(); echo.delayTime.value = .54; const fb = c.createGain(); fb.gain.value = .3; const wet = c.createGain(); wet.gain.value = .35;
+    echo.connect(fb); fb.connect(echo); echo.connect(wet); wet.connect(bus); L.echo = echo;
+    const BPM = 84, s16 = 60 / BPM / 4;
+    // Am9 · Fmaj7 · Cmaj7 · Em7 (MIDI notes), 2 bars each
+    const CH = [[57, 60, 64, 67, 71], [53, 57, 60, 64, 67], [48, 55, 59, 64, 67], [52, 55, 59, 62, 67]], SC = [69, 72, 74, 76, 79, 81, 84];
+    const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+    const pad = (notes, t, d) => notes.forEach((m, i) => {
+      [-7, 7].forEach(dt => { const o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter(); o.type = 'sawtooth'; o.frequency.value = hz(m); o.detune.value = dt; f.type = 'lowpass'; f.frequency.value = 900 + L.int * 500; f.Q.value = .4;
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(.022, t + 1.2); g.gain.setValueAtTime(.022, t + d - 1); g.gain.linearRampToValueAtTime(.0001, t + d + .3);
+        o.connect(f); f.connect(g); g.connect(bus); o.start(t); o.stop(t + d + .4); });
+    });
+    const play = (f, t, d, type, v, opt = {}) => { const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (opt.to) o.frequency.exponentialRampToValueAtTime(opt.to, t + d * .6);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.connect(g); g.connect(bus); if (opt.echo) g.connect(L.echo); o.start(t); o.stop(t + d + .05); };
+    const hat = (t, v) => { const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); s.buffer = this.noiseBuf; f.type = 'highpass'; f.frequency.value = 7000; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + .05); s.connect(f); f.connect(g); g.connect(bus); s.start(t, Math.random()); s.stop(t + .06); };
+    const sched = () => {
+      if (!this.mus) return;
+      L.int = musicIntensity();
+      while (L.next < c.currentTime + .35) {
+        const st = L.step, t = L.next, bar = Math.floor(st / 16), ch = CH[Math.floor(bar / 2) % 4], in16 = st % 16, swing = in16 % 2 ? s16 * .12 : 0, tt = t + swing;
+        if (st % 32 === 0) pad(ch.slice(1), t, s16 * 32);
+        if (in16 === 0 || in16 === 10) play(hz(ch[0] - 12), tt, s16 * 5, 'triangle', .2);
+        if (in16 === 6 && bar % 2) play(hz(ch[0] - 5), tt, s16 * 3, 'triangle', .14);
+        if (L.int >= 1) { if (in16 === 0 || in16 === 8) play(110, tt, .32, 'sine', .32, { to: 45 }); if (in16 === 4 || in16 === 12) { hat(tt, .05); play(180, tt, .12, 'triangle', .05); } }
+        if (L.int >= 1 && in16 % 2 === 0) hat(tt, in16 % 4 ? .018 : .028);
+        if (L.int >= 1.6 && in16 % 2 === 1) hat(tt, .014);
+        if (in16 % 4 === 2 && Math.random() < (.12 + L.int * .1)) play(hz(SC[Math.floor(Math.random() * SC.length)]), tt, .6, 'triangle', .05, { echo: 1 });
+        L.step++; L.next += s16;
+      }
+    };
+    L.timer = setInterval(sched, 90); sched();
+  },
 };
+function isNight() { const r = S.run, s = r && r.shift; return !!(s && s.type === 'NIGHT' && !r.ended); }
+/** 0.6 calm (menus, home) · 1 working a shift · 1.6 critical alerts open · 2 major incident bridge. */
+function musicIntensity() {
+  const r = S.run, s = r && r.shift; if (!r || r.ended || !s || !isLive()) return .6;
+  if (s.bridge && s.bridge.active) return 2;
+  return (s.alerts || []).some(a => a.status === 'open' && a.sev >= 3) ? 1.6 : 1;
+}
+['pointerdown', 'keydown', 'touchend'].forEach(ev => window.addEventListener(ev, () => { if (S.meta && S.meta.settings.sound) Sound.unlock(); }, { capture: true, passive: true }));
+document.addEventListener('visibilitychange', () => { if (!Sound.ctx) return; if (document.hidden) Sound.ctx.suspend(); else if (S.meta.settings.sound) Sound.ctx.resume(); });
+
 
 /* Beginner hints: Ravi tells you what kind of alert this is (limited per shift). */
 function useHint(a) {
@@ -2363,7 +2533,7 @@ function chat(who, text, html) {
   s.chat.push({ who, text: html ? text : esc(text), t: s.t });
   if (s.chat.length > 140) s.chat.shift();
   if (S.ui.ctab !== 'chat' || (S.mobile && S.ui.mpane !== 'mon3')) s.unread = (s.unread || 0) + 1;
-  if (who === 'mentor' || who === 'mgr') Sound.blip(740);
+  if (who === 'mentor' || who === 'mgr' || who === 't2') Sound.msg();
   S.ui.dc = true;
 }
 function toast(msg, cls = '') {
@@ -2652,10 +2822,9 @@ function showStart() {
       <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="profile">👤 PROFILE</button><button class="btn lg" style="flex:1" data-go="unlocks">◈ UNLOCKS <span class="muted">${S.meta.lp}</span></button></div>
       <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="leaderboard">🏆 LEADERBOARD</button><button class="btn lg" style="flex:1" data-go="tutorial">🎓 TUTORIAL</button></div>
       <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="settings">⚙ SETTINGS</button><button class="btn lg" style="flex:1" data-go="howto">? HOW TO PLAY</button></div>
-      <div style="display:flex;gap:8px">${isStandalone() ? '' : '<button class="btn lg ghost" style="flex:1" data-go="install">📲 ADD TO HOME SCREEN</button>'}${document.documentElement.requestFullscreen && !isStandalone() ? '<button class="btn lg ghost" style="flex:1" data-go="fullscreen">⛶ FULLSCREEN</button>' : ''}</div>
     </div>
     ${Net.enabled() && !acctAny() ? '<div class="card" style="max-width:360px;margin:6px auto 0;padding:8px 10px"><p style="font-size:13px">Playing offline. <button class="btn sm primary" data-go="acc-reg">Create account</button> <button class="btn sm" data-go="acc-login">Log in</button></p></div>' : ''}
-    <div class="foot-note">${acctAny() ? (acct() ? '<span class="gr">●</span> Online as' : '<span class="am">●</span> Login expired:') : 'Playing as'} <b class="cy">${esc(profileName())}</b> · <span class="mono">v${GAME_VERSION}</span> <button class="btn sm ghost" data-go="check-upd">⟳ Check for updates</button><br>Runs: ${S.meta.runs} · Best: ${S.meta.best.shifts} shifts · Highest tier: ${TIERS[S.meta.best.tier]}${Store.ok ? '' : '<br><span class="am">Storage unavailable — progress will not be saved.</span>'}</div>
+    <div class="foot-note">${acctAny() ? (acct() ? '<span class="gr">●</span> Online as' : '<span class="am">●</span> Login expired:') : 'Playing as'} <b class="cy">${esc(profileName())}</b> · <span class="mono">v${GAME_VERSION}</span> <button class="btn sm ghost" data-go="check-upd">⟳ Check for updates</button> <button class="btn sm ghost" data-go="feedback">💬 Feedback</button><br>Runs: ${S.meta.runs} · Best: ${S.meta.best.shifts} shifts · Highest tier: ${TIERS[S.meta.best.tier]}${Store.ok ? '' : '<br><span class="am">Storage unavailable — progress will not be saved.</span>'}</div>
   </div></div>`);
 }
 function showNewRun() {
@@ -2676,17 +2845,36 @@ function showUnlocks() {
   </div><div class="panel-f"><button class="btn" data-go="menu" data-primary="1">← Back</button><span class="sp"></span><button class="btn" data-go="profile-ach">🏆 View achievements</button></div></div>`);
 }
 function showSettings(back = 'menu') {
-  const st = S.meta.settings;
-  showOverlay('settings', `<div class="panel" style="width:min(520px,calc(var(--sw) * 94))"><div class="panel-h"><h2>SETTINGS</h2></div><div class="panel-b">
+  S.setBack = back;
+  const st = S.meta.settings, fsOK = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+  const pct = v => Math.round((v == null ? 0.7 : v) * 100);
+  const vol = (id, lbl, v) => `<div class="vol ${st.sound ? '' : 'off'}" data-vol><span>${lbl}</span><input type="range" id="${id}" min="0" max="100" step="5" value="${pct(v)}" ${st.sound ? '' : 'disabled'}><span class="mono" id="${id}V">${pct(v)}%</span></div>`;
+  showOverlay('settings', `<div class="panel" style="width:min(560px,calc(var(--sw) * 94))"><div class="panel-h"><h2>SETTINGS</h2></div><div class="panel-b">
     <div class="field"><label>CLOCK SPEED (in-game minutes per real second)</label><select id="setSpeed">${[1, 1.5, 2, 3].map(v => `<option value="${v}" ${st.speed == v ? 'selected' : ''}>${v} min/s${v === 1.5 ? ' (default)' : ''} — a shift lasts ~${Math.round(705 / v / 60)} min</option>`).join('')}</select></div>
-    <label class="toggle"><input type="checkbox" id="setSound" ${st.sound ? 'checked' : ''}> Sound effects (Web Audio)</label>
-    <label class="toggle"><input type="checkbox" id="setReduced" ${st.reduced ? 'checked' : ''}> Reduced motion</label>
-    <label class="toggle"><input type="checkbox" id="setScan" ${st.scan ? 'checked' : ''}> CRT scanlines</label>
+    <div class="sethead">SOUND</div>
+    <label class="toggle"><input type="checkbox" id="setSound" ${st.sound ? 'checked' : ''}><span>Sound<small>Effects, office ambience and music. On iPhone, turn off the silent switch if you hear nothing.</small></span></label>
+    ${vol('volFx', 'Effects', st.volFx)}${vol('volAmb', 'Ambience', st.volAmb)}${vol('volMus', 'Music', st.volMus)}
+    <div class="sethead">DISPLAY</div>
+    <label class="toggle"><input type="checkbox" id="setFull" ${document.fullscreenElement || document.webkitFullscreenElement ? 'checked' : ''} ${fsOK && !isStandalone() ? '' : 'disabled'}><span>Fullscreen<small>${isStandalone() ? 'Already full-screen as an installed app.' : fsOK ? 'Hide the browser bars. Esc also exits.' : 'Not supported by this browser. Use Add to home screen instead.'}</small></span></label>
+    <label class="toggle"><input type="checkbox" id="setReduced" ${st.reduced ? 'checked' : ''}><span>Reduced motion</span></label>
+    <label class="toggle"><input type="checkbox" id="setScan" ${st.scan ? 'checked' : ''}><span>CRT scanlines</span></label>
     <div class="field"><label>TEXT & INTERFACE SIZE</label><select id="setText">${[['normal', 'Normal (default)'], ['large', 'Large'], ['xl', 'Extra large']].map(([v, l]) => `<option value="${v}" ${st.text === v ? 'selected' : ''}>${l}</option>`).join('')}</select><span class="muted" style="font-size:12.5px">The whole interface scales to fit your window. On small windows, larger sizes are capped so nothing gets cut off.</span></div>
-    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="mono muted">SIGNAL//NOISE v${GAME_VERSION}</span><button class="btn sm" data-go="check-upd">⟳ Check for updates</button><button class="btn sm" data-go="install">📲 Add to home screen</button><span class="sp" style="flex:1"></span><button class="btn danger sm" data-go="reset">Reset all progress…</button></div>
+    <div class="sethead">APP</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="mono muted">SIGNAL//NOISE v${GAME_VERSION}</span><button class="btn sm" data-go="check-upd">⟳ Check for updates</button>${isStandalone() ? '' : '<button class="btn sm" data-go="install">📲 Add to home screen</button>'}<button class="btn sm" data-go="feedback">💬 Send feedback</button></div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex"><span class="sp" style="flex:1"></span><button class="btn danger sm" data-go="reset">Reset all progress…</button></div>
   </div><div class="panel-f"><button class="btn primary" data-go="${back}" data-primary="1">Done</button></div></div>`);
-  const apply = () => { st.speed = +$('#setSpeed').value; st.sound = $('#setSound').checked; st.reduced = $('#setReduced').checked; st.scan = $('#setScan').checked; st.text = $('#setText').value; applySettings(); saveMeta(); };
+  const apply = () => {
+    const was = st.sound;
+    st.speed = +$('#setSpeed').value; st.sound = $('#setSound').checked; st.reduced = $('#setReduced').checked; st.scan = $('#setScan').checked; st.text = $('#setText').value;
+    st.volFx = +$('#volFx').value / 100; st.volAmb = +$('#volAmb').value / 100; st.volMus = +$('#volMus').value / 100;
+    $$('[data-vol]').forEach(v => { v.classList.toggle('off', !st.sound); v.querySelector('input').disabled = !st.sound; });
+    ['volFx', 'volAmb', 'volMus'].forEach(id => $('#' + id + 'V').textContent = $('#' + id).value + '%');
+    applySettings(); saveMeta(); if (st.sound) Sound.unlock(); Sound.sync(); if (st.sound && !was) Sound.good();
+  };
   ['#setSpeed', '#setSound', '#setReduced', '#setScan', '#setText'].forEach(id => $(id).addEventListener('change', apply));
+  ['#volFx', '#volAmb', '#volMus'].forEach(id => $(id).addEventListener('input', apply));
+  $('#volFx').addEventListener('change', () => Sound.blip(880));
+  $('#setFull').addEventListener('change', e => { toggleFullscreen(e.target.checked); });
 }
 function applySettings() {
   const st = S.meta.settings;
@@ -2706,10 +2894,10 @@ function showHowTo(back = 'menu') {
     <h3>RESOURCES</h3><ul><li><b>Energy</b> drains over time. When it's low, queries take 50% longer. Coffee (<kbd>Q</kbd>, refill <kbd>R</kbd>) and breaks restore it.</li><li><b>Caffeine</b> gives energy now and a crash later, and high caffeine raises stress.</li><li><b>Stress</b> rises with backlog, mistakes and night work. It falls with rest and days off.</li><li><b>Reputation</b> rises with accurate calls and good handoffs, and falls with SLA breaches and mistakes.</li></ul>
     <h3>POINTS</h3><ul><li><b>CP — Career Points</b> (top bar) belong to the current career. You earn them by catching real threats, handing off well, finishing shifts, containing major incidents and taking curse cards. Spend them on days off for rest, training and the certifications you need for promotion. Higher tiers earn more CP.</li><li><b>LP — Legacy Points</b> are earned when a run ends and are kept forever. Spend them in <b>Unlocks</b> on permanent perks and tools.</li></ul>
     <h3>MAJOR INCIDENTS</h3><p>Every 5th shift a major incident opens a timed bridge on Monitor 3. Solve at least 3 of 4 objectives before time runs out.</p>
-    <h3>SHIFT GRADES</h3><p>Every shift ends with three grades. <b>Decisions</b> starts from your accuracy (correct calls ÷ calls), then loses 8 per SLA breach, 12 per real attack you closed as harmless, and 2 per alert left in the queue beyond the first two. <b>Handoff</b> rewards including every important item and leaving out junk. The <b>Shift grade</b> is ${Math.round(GRADE_W.decisions * 100)}% Decisions + ${Math.round(GRADE_W.handoff * 100)}% Handoff (A ≥ 90 · B ≥ 75 · C ≥ 60 · D ≥ 40), and it adds points to your run score (A = 100 … F = 0). See every past shift in <b>📋 Shift history</b> (pause menu or days-off screen).</p>
-    <h3>ACCOUNT, PROFILE & LEADERBOARDS</h3><p>Your <b>username + 4-digit passcode</b> log you in on any device, and progress saves to the cloud automatically. <b>Profile</b> shows lifetime stats, achievements and run history (replay any seed). <b>Leaderboards</b>: <b>Runs</b> (live, updated every time someone clocks out of a shift) and <b>Careers</b> (finished runs). <b>Save / Load Profile</b> files remain as a backup.</p>
+    <h3>SHIFT GRADES</h3><p>Every shift ends with three grades. <b>Decisions</b> starts from your accuracy (correct calls ÷ calls), then loses 8 per SLA breach, 12 per real attack you closed as harmless, and 2 per alert left in the queue beyond the first two. <b>Handoff</b> rewards including every important item and leaving out junk. The <b>Shift grade</b> is ${Math.round(GRADE_W.decisions * 100)}% Decisions + ${Math.round(GRADE_W.handoff * 100)}% Handoff (A ≥ 90 · B ≥ 75 · C ≥ 60 · D ≥ 40), and it adds points to your run score (A = 100 … F = 0). See every past shift in <b>Profile → Shift history</b>.</p>
+    <h3>ACCOUNT, PROFILE & LEADERBOARDS</h3><p>Your <b>username + 4-digit passcode</b> log you in on any device, and progress saves to the cloud automatically. <b>Profile</b> shows lifetime stats, achievements and run history (replay any seed). <b>Leaderboards</b>: <b>Runs</b> (live, updated every time someone clocks out of a shift) and <b>Careers</b> (finished runs). <b>Save / Load Profile</b> (in Profile) download and restore a backup file.</p>
     <h3>DAYS OFF & META</h3><p>On days off, spend Career Points (CP) on rest, training and certifications. Certifications plus reputation unlock promotions. When a run ends you earn Legacy Points for permanent perks and tools.</p>
-    <h3>ON A PHONE OR TABLET</h3><p>Use the tab bar at the bottom to switch between <b>Queue</b>, <b>Case</b> (the investigation workspace) and <b>Comms</b>. Badges show open alerts and unread messages. Tapping an alert opens it in Case. The ☕ button drinks coffee, ❚❚ pauses, 🃏 shows your cards, and MENU opens saves and settings. Landscape gives more room. For full screen, use "Add to Home Screen" or the Fullscreen button where your browser supports it.</p>
+    <h3>ON A PHONE OR TABLET</h3><p>Use the tab bar at the bottom to switch between <b>Queue</b>, <b>Case</b> (the investigation workspace) and <b>Comms</b>. Badges show open alerts and unread messages. Tapping an alert opens it in Case. The ☕ button drinks coffee, ❚❚ pauses, 🃏 shows your cards, and MENU opens the pause menu. Landscape gives more room. For full screen, use <b>Settings → Add to home screen</b> or the <b>Fullscreen</b> switch where your browser supports it.</p>
     <h3>KEYS</h3><p><kbd>J</kbd>/<kbd>K</kbd> queue · <kbd>1</kbd>–<kbd>5</kbd> evidence tabs · <kbd>F</kbd> <kbd>B</kbd> <kbd>E</kbd> <kbd>P</kbd> <kbd>I</kbd> <kbd>D</kbd> decide · <kbd>Q</kbd> sip · <kbd>R</kbd> refill · <kbd>Space</kbd> pause · <kbd>T</kbd> fast-forward · <kbd>M</kbd> sound · <kbd>L</kbd> lamp · <kbd>Esc</kbd> menu</p>
   </div><div class="panel-f"><button class="btn primary" data-go="${back}" data-primary="1">Got it</button></div></div>`);
 }
@@ -2720,11 +2908,8 @@ function showPauseMenu() {
     <button class="btn primary lg" data-go="resume" data-primary="1">▶ RESUME</button>
     <button class="btn lg" data-go="settings2">⚙ SETTINGS</button>
     <button class="btn lg" data-go="howto2">? HOW TO PLAY</button>
-    <button class="btn lg" data-go="shifthist">📋 SHIFT HISTORY (${(S.run.shiftLog || []).length})</button>
     <button class="btn lg" data-go="cards">🃏 ACTIVE CARDS (${(S.run.cards || []).reduce((t, c) => t + c.n, 0)})</button>
     <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="profile2">👤 PROFILE</button><button class="btn lg" style="flex:1" data-go="leaderboard2">🏆 RANKS</button></div>
-    <div style="display:flex;gap:8px"><button class="btn lg" style="flex:1" data-go="download">⇩ SAVE PROFILE</button><button class="btn lg" style="flex:1" data-go="load2">⇪ LOAD PROFILE</button></div>
-    ${document.documentElement.requestFullscreen ? '<button class="btn lg" data-go="fullscreen">⛶ TOGGLE FULLSCREEN</button>' : ''}
     <button class="btn lg" data-go="savequit">⏏ SAVE & QUIT TO MENU</button>
     <button class="btn danger lg" data-go="resign">✖ RESIGN (END RUN)</button>
   </div></div></div>`);
@@ -2751,7 +2936,7 @@ function showIncomingHandoff() {
 }
 function startLive() {
   const r = S.run, s = sh();
-  s.phase = 'live'; s.t = 15 + (s.askCost || 0); S.paused = false;
+  s.phase = 'live'; s.t = 15 + (s.askCost || 0); S.paused = false; Sound.shiftStart();
   const due = r.surprises.filter(x => x.shift <= s.idx); r.surprises = r.surprises.filter(x => x.shift > s.idx);
   chat('sys', `Shift started. ${s.type === 'DAY' ? 'Day' : 'Night'} shift #${r.shiftCount + 1} · ${TIERS[r.tier]} · seed ${r.seed}`);
   due.forEach(x => { chat('sys', `${x.who} (previous shift): "${x.text}" (Rep ${x.rep}${x.st ? ', Stress +' + x.st : ''})`); addRep(x.rep); if (x.st) addStress(x.st); });
@@ -2784,7 +2969,7 @@ function showShiftReport(rep) {
       + `<div class="grid3" style="margin-top:12px"><div class="bigstat" style="font-size:23px">${rep.rep >= 0 ? '+' : ''}${rep.rep}<small>REPUTATION</small></div><div class="bigstat" style="font-size:23px">+${rep.cp}<small>CAREER POINTS</small></div><div class="bigstat" style="font-size:23px">${Math.round(r.stress)}<small>STRESS</small></div></div>
       <p class="muted" style="margin-top:12px">${acct() ? '🌐 Your run total has been posted to the live Runs leaderboard. ' : ''}Some outcomes (missed threats, orphaned tickets) only surface on later shifts…</p>
       <p style="margin-top:6px">Next: <b>${next === 'OFF' ? 'Days off 🏠' : dayLabel(r.dayIdx + 1) + ' ' + next + ' shift'}</b></p>`,
-    buttons: [{ label: '📋 Shift history', cls: 'ghost', keep: true, fn() { showShiftHistory(r.shiftLog, 'This run'); } }, { label: next === 'OFF' ? 'Go home ▶' : 'Sleep & next shift ▶', cls: 'primary', fn: proceedAfterShift }]
+    buttons: [{ label: next === 'OFF' ? 'Go home ▶' : 'Sleep & next shift ▶', cls: 'primary', fn: proceedAfterShift }]
   });
 }
 /** Table of every shift in a run (current run or a past one from run history). */
@@ -2821,7 +3006,7 @@ function showHome() {
     <div class="panel-b"><div class="sched" style="margin-bottom:12px">${sched}</div>${promo}
     <div class="hosec">REST & TRAINING</div><div class="grid3">${act}</div>
     <div class="hosec" style="margin-top:14px">CERTIFICATIONS</div><div class="grid2">${certs}</div></div>
-    <div class="panel-f"><span class="muted mono" style="font-size:12.5px">${TIERS[r.tier]} · ${r.shiftCount} shifts survived · seed ${r.seed}</span><span class="sp"></span><button class="btn" data-go="shifthist-home">📋 Shift history</button><button class="btn" data-go="download">⇩ Save profile</button><button class="btn" data-go="menuFromHome">Save & quit</button><button class="btn primary lg" data-go="work" data-primary="1">Back to work: ${dayLabel(r.dayIdx + h.off)} ${r.schedule[r.dayIdx + h.off]} ▶</button></div></div>`);
+    <div class="panel-f"><span class="muted mono" style="font-size:12.5px">${TIERS[r.tier]} · ${r.shiftCount} shifts survived · seed ${r.seed}</span><span class="sp"></span><button class="btn" data-go="profile-home">👤 Profile</button><button class="btn" data-go="menuFromHome">Save & quit</button><button class="btn primary lg" data-go="work" data-primary="1">Back to work: ${dayLabel(r.dayIdx + h.off)} ${r.schedule[r.dayIdx + h.off]} ▶</button></div></div>`);
   renderHUD(); renderDesk();
 }
 function doHome(id) {
@@ -2864,7 +3049,7 @@ function showSummary({ cause, detail, lp, acc, newAch, curseLP }) {
     </div>
     ${(() => { const h = S.meta.history[0]; if (!h) return ''; return `<div class="card" style="margin-top:12px;border-color:rgba(62,240,255,.45)"><h4>🏆 CAREER SCORE: ${(h.score || 0).toLocaleString()} <span class="muted" style="font-weight:600">(${diffOf(h.diff).ico} ${diffOf(h.diff).name} ×${diffOf(h.diff).mult})</span></h4><p>${acctAny() && Net.enabled() ? '🌐 Posted automatically to the live <b>Runs</b> and <b>Careers</b> leaderboards.' : Net.enabled() ? 'You\'re playing offline. Create an account from your Profile to post scores.' : 'Saved to this device\'s leaderboard.'}</p><div class="row"><span class="sp"></span><button class="btn primary" data-go="lb-summary">🏆 See where you rank ▶</button></div></div>`; })()}
     <div class="card" style="margin-top:12px"><h4>SHIFT CARDS THIS CAREER</h4>${r.cards.length ? '<p>' + r.cards.map(c => { const d = CARD_BY[c.id]; return d ? `${d.ico} ${esc(d.name)}${c.n > 1 ? ' ×' + c.n : ''}` : ''; }).join(' · ') + '</p>' : '<p class="muted">No cards taken.</p>'}${curseLP ? `<p class="mg" style="margin-top:4px">Curses paid out +${curseLP} LP (included above).</p>` : ''}</div>
-  </div><div class="panel-f"><button class="btn" data-go="download" title="Download your profile (unlocks, LP, achievements, history)">⇩ Save profile</button><button class="btn" data-go="profile-hist">📜 Run history</button><button class="btn" data-go="unlocks">◈ Unlocks</button><button class="btn" data-go="menu">Main menu</button><span class="sp"></span><button class="btn primary lg" data-go="new" data-primary="1">NEW RUN ▶</button></div></div>`);
+  </div><div class="panel-f"><button class="btn" data-go="profile-hist">👤 Profile</button><button class="btn" data-go="unlocks">◈ Unlocks</button><button class="btn" data-go="menu">Main menu</button><span class="sp"></span><button class="btn primary lg" data-go="new" data-primary="1">NEW RUN ▶</button></div></div>`);
   S.run = null; renderAll();
 }
 
@@ -2954,10 +3139,10 @@ function showLoadScreen(back = 'menu') {
 function bindDragDrop() {
   let depth = 0;
   const hasFiles = e => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
-  document.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); depth++; $('#dropHint').classList.remove('hidden'); });
+  document.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); depth++; if (S.overlay === 'feedback') $('#fbDrop') && $('#fbDrop').classList.add('over'); else $('#dropHint').classList.remove('hidden'); });
   document.addEventListener('dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
-  document.addEventListener('dragleave', e => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (!depth) $('#dropHint').classList.add('hidden'); });
-  document.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); depth = 0; $('#dropHint').classList.add('hidden'); handleSaveFile(e.dataTransfer.files[0]); });
+  document.addEventListener('dragleave', e => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (!depth) { $('#dropHint').classList.add('hidden'); $('#fbDrop') && $('#fbDrop').classList.remove('over'); } });
+  document.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); depth = 0; $('#dropHint').classList.add('hidden'); if (S.overlay === 'feedback') fbAdd(e.dataTransfer.files); else handleSaveFile(e.dataTransfer.files[0]); });
   $('#fileIn').addEventListener('change', e => { handleSaveFile(e.target.files[0]); e.target.value = ''; });
 }
 
@@ -2984,13 +3169,18 @@ function showCPInfo() {
     <p style="margin-top:8px"><b>Spent on your days off</b> on rest, training and certifications. You need certifications for promotion, and higher tiers earn more CP per catch.</p>
     <p class="muted">Not to be confused with Legacy Points (LP), which you earn when a run ends and keep forever for permanent unlocks.</p>`, buttons: [{ label: 'Got it', cls: 'primary', fn() { S.paused = wasPaused; } }] });
 }
-function toggleFullscreen() {
+function toggleFullscreen(on) {
+  const d = document, el = d.documentElement, cur = !!(d.fullscreenElement || d.webkitFullscreenElement);
+  if (on === undefined) on = !cur; if (on === cur) return;
+  const fail = () => { toast('Fullscreen not available here', 'warn'); const t = $('#setFull'); if (t) t.checked = cur; };
   try {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => toast('Fullscreen not available here', 'warn'));
-    else toast('Fullscreen not supported — try "Add to Home Screen"', 'warn');
-  } catch (e) { toast('Fullscreen not available here', 'warn'); }
+    if (!on) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+    else if (el.requestFullscreen) el.requestFullscreen().catch(fail);
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else fail();
+  } catch (e) { fail(); }
 }
+['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, () => { const t = $('#setFull'); if (t) t.checked = !!(document.fullscreenElement || document.webkitFullscreenElement); }));
 function fit() {
   const W = Math.max(200, window.innerWidth), H = Math.max(150, window.innerHeight);
   const pref = TEXT_SCALES[S.meta.settings.text] || 1;
@@ -3021,7 +3211,8 @@ function profileName() { return (S.meta.profile && S.meta.profile.name) || 'Anal
 function showProfile(tab = 'stats', back = 'menu') {
   const m = S.meta, Lf = m.life, achN = Object.keys(ACH).filter(k => m.ach[k]).length, achT = Object.keys(ACH).length;
   const live = getSavedRun();
-  const tabs = [['stats', 'OVERVIEW'], ['ach', `ACHIEVEMENTS ${achN}/${achT}`], ['hist', `RUN HISTORY (${m.history.length})`]];
+  const cur = S.run && !S.run.ended ? S.run : live, curLog = (cur && cur.shiftLog) || [];
+  const tabs = [['stats', 'OVERVIEW'], ['ach', `ACHIEVEMENTS ${achN}/${achT}`], ['shifts', `SHIFT HISTORY (${curLog.length})`], ['hist', `RUN HISTORY (${m.history.length})`]];
   const acc = Lf.decisions ? Math.round(Lf.correct / Lf.decisions * 100) + '%' : '—';
   let body = '';
   if (tab === 'stats') {
@@ -3044,6 +3235,10 @@ function showProfile(tab = 'stats', back = 'menu') {
       </div>
       <div class="hosec" style="margin-top:14px">BEST CAREER BY DIFFICULTY</div><div class="grid2">${DIFF_ORDER.map(k => { const D = DIFFS[k], hs = m.history.filter(h => h.diff === k), b = hs.slice().sort((x, y) => y.score - x.score)[0]; return `<div class="card" style="border-color:${D.color}55"><h4 style="color:${D.color}">${D.ico} ${D.name}</h4><p>${b ? `<b>${b.score.toLocaleString()} pts</b> · ${b.shifts} shifts · ${esc(TIER_BADGE[b.tier])} · ${hs.length} career${hs.length === 1 ? '' : 's'}` : 'No careers yet'}</p></div>`; }).join('')}</div>
       <div class="hosec" style="margin-top:14px">HOW CAREERS ENDED</div><div style="display:flex;flex-wrap:wrap;gap:6px">${ends}</div>`;
+  } else if (tab === 'shifts') {
+    const n = curLog.length, avg = n ? Math.round(curLog.reduce((t, x) => t + (x.oScore || 0), 0) / n) : 0;
+    body = cur ? `<p class="muted" style="margin-bottom:8px">Current career · seed <span class="mono">${esc(cur.seed)}</span> · ${diffOf(cur.diff).ico} ${diffOf(cur.diff).name}${n ? ` · ${n} shift${n === 1 ? '' : 's'} · average ${avg}/100 (${letterOf(avg)}) · newest first` : ''}</p>${shiftLogHTML(curLog)}<p class="muted" style="margin-top:10px">Shift histories of finished careers are in <b>Run history</b> (tap a career).</p>`
+      : `<div class="qempty"><b>NO CAREER IN PROGRESS</b>Start a run to see its shifts here. Finished careers keep their shift history under Run history.</div>`;
   } else if (tab === 'ach') {
     body = ACH_CATS.map(cat => `<div class="hosec">${cat.toUpperCase()}</div><div class="grid2">` + Object.entries(ACH).filter(([, a]) => a.cat === cat).map(([k, a]) => {
       const got = m.ach[k], pg = !got && a.prog ? a.prog(m) : null;
@@ -3496,7 +3691,7 @@ function lbCurrentRun() {
 function lbKey() { return LB.kind + '|' + LB.tab; }
 async function lbFetch(manual) {
   if (!Net.enabled()) { renderLeaderboard(); return; }
-  if (LB.loading) return; LB.loading = true; renderLeaderboard();
+  if (LB.loading) { LB.again = true; renderLeaderboard(); return; } LB.loading = true; renderLeaderboard();
   await flushOutbox(); // post anything pending first, so you see your latest shift
   const key = lbKey();
   try {
@@ -3504,13 +3699,25 @@ async function lbFetch(manual) {
     LB.cache[key] = { data: res, at: new Date().toISOString() }; Store.set(LB_STORE, LB.cache); LB.err = null;
     if (manual) toast('Leaderboard refreshed', 'good');
   } catch (e) { LB.err = e.code || 'offline'; if (manual) toast(NET_MSG[LB.err] || 'Refresh failed', 'warn'); }
-  finally { LB.loading = false; renderLeaderboard(); }
+  finally { LB.loading = false; if (LB.again) { LB.again = false; lbFetch(false); } else renderLeaderboard(); }
 }
 function showLeaderboard(back) {
   LB.back = back || LB.back || 'menu'; LB.cache = LB.cache || Store.get(LB_STORE) || {};
-  renderLeaderboard(true); lbFetch(false);
+  if (S.overlay === 'leaderboard') S.overlay = null; // fresh open (e.g. from the run summary)
+  LB.loading = Net.enabled(); renderLeaderboard(true); LB.loading = false; lbFetch(false);
   clearInterval(LB.timer);
   LB.timer = setInterval(() => { if (S.overlay === 'leaderboard') lbFetch(false); else clearInterval(LB.timer); }, 30000);
+}
+/** Open the leaderboard panel once; later refreshes swap its contents in place (no re-animation, scroll kept, skipped if nothing changed). */
+function lbPaint(html) {
+  const o = $('#overlay'), cur = S.overlay === 'leaderboard' && o.querySelector('[data-lbpanel]');
+  if (!cur) { LB.lastHTML = html; showOverlay('leaderboard', html); return; }
+  const strip = h => h.replace(/refreshed [^·<]*·/, '').replace(/\d+[mhd] ago|just now/g, '');
+  if (strip(html) === strip(LB.lastHTML || '') && !/⟳ (Updating|Loading)/.test(html)) { const m = cur.querySelector('.lbmeta'), t = document.createElement('div'); t.innerHTML = html; const nm = t.querySelector('.lbmeta'); if (m && nm) m.innerHTML = nm.innerHTML; LB.lastHTML = html; return; }
+  LB.lastHTML = html;
+  const t = document.createElement('div'); t.innerHTML = html; const np = t.firstElementChild, body = cur.querySelector('.panel-b'), top = body ? body.scrollTop : 0;
+  cur.replaceChildren(...np.childNodes);
+  const nb = cur.querySelector('.panel-b'); if (nb) nb.scrollTop = top;
 }
 function tzName() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time'; } catch (e) { return 'local time'; } }
 function timeAgo(iso) { const s = (Date.now() - Date.parse(iso)) / 1000; if (!isFinite(s)) return ''; if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + 'm ago'; if (s < 86400) return Math.floor(s / 3600) + 'h ago'; return Math.floor(s / 86400) + 'd ago'; }
@@ -3522,31 +3729,33 @@ function renderLeaderboard(force) {
   if (data) {
     rows = (data.rows || []).slice(0, 15).map(x => Object.assign({}, x, { mine: !!(a && x.player_id === a.pid) })); total = data.total; meRank = data.me;
     if (meRank && meRank.name && !rows.some(x => x.mine)) rows.push(Object.assign({}, meRank, { mine: true, below: true }));
-    src = LB.loading ? '⟳ Updating…' : LB.err ? `⚠ ${NET_MSG[LB.err] || 'Offline'} Showing the copy from ${fmtDate(c.at, true)}.` : `<span class="gr">● LIVE</span> · refreshed ${fmtDate(c.at, true)} · auto-refreshes every 30 s`;
+    src = LB.err && !LB.loading ? `⚠ ${NET_MSG[LB.err] || 'Offline'} Showing the copy from ${fmtDate(c.at, true)}.` : `<span class="gr">● LIVE</span> · refreshed ${fmtDate(c.at, true)} · auto-refreshes every 30 s`;
+  } else if (online && LB.loading) {
+    rows = null; total = 0; src = '⟳ Loading the live leaderboard…';
   } else {
     const all = lbLocalRows(); total = all.length; const mr = all.find(x => x.mine); meRank = mr ? { rank: mr.rank, score: mr.score } : null;
     rows = all.slice(0, 15); if (mr && mr.rank > 15) rows.push(Object.assign({}, mr, { below: true }));
     src = online ? (LB.loading ? '⟳ Connecting to the leaderboard…' : `⚠ ${NET_MSG[LB.err] || 'Can\'t reach the server.'} Showing sample bots and this device's scores.`) : 'Online leaderboards aren\'t set up for this copy of the game. Showing sample bots and this device\'s scores.';
   }
   const live = lbCurrentRun(), pending = (S.meta.outbox || []).filter(x => x.fn === 'sn_post_run').length;
-  const liveRank = live ? rows.filter(x => !x.mine && x.score > live.score).length + 1 : null, liveTop = live && liveRank <= 15;
+  const liveRank = live ? (rows || []).filter(x => !x.mine && x.score > live.score).length + 1 : null, liveTop = live && liveRank <= 15;
   const last = data && data.updated_at ? `🕒 Last leaderboard activity: <b class="cy">${fmtDate(data.updated_at, true)}</b> <span class="muted">(${esc(tzName())})</span>` : '';
   const rowHTML = x => { const D = diffOf(x.diff), rk = x.rank; return `${x.below ? '<div class="lbgap">⋯ your best ⋯</div>' : ''}<div class="lbrow ${x.mine ? 'me' : ''}"><span class="lbrank">${rk <= 3 ? ['🥇', '🥈', '🥉'][rk - 1] : '#' + rk}</span>
     <div class="lbname"><b>${esc(x.name)}</b> ${x.bot ? '<span class="tag carry" title="Sample score, not a real player">BOT</span>' : ''}${x.mine ? '<span class="tag watch">YOU</span>' : ''}${x.status === 'active' ? '<span class="tag livetag">● LIVE RUN</span>' : ''}
       <div class="qs">${D.ico} ${D.name} · ${x.shifts} shifts · ${esc(TIER_BADGE[x.tier] || '')} · ${x.acc}% acc${x.last_grade ? ` · last shift <b style="color:${GRADE_COLOR[x.last_grade]}">${x.last_grade}</b>` : ''}${x.status === 'ended' && ENDINGS[x.cause] ? ' · ' + ENDINGS[x.cause][0] + ' ' + ENDINGS[x.cause][1] : ''} · ${timeAgo(x.updated_at)}</div></div>
     <span class="lbscore">${(x.score || 0).toLocaleString()}</span></div>`; };
   const kinds = [['runs', '🏃 RUNS · LIVE'], ['careers', '🏆 CAREERS']];
-  showOverlay('leaderboard', `<div class="panel" style="width:min(940px,calc(var(--sw) * 96))"><div class="panel-h"><h2>🏆 LEADERBOARDS</h2><span class="sp"></span><button class="btn sm" data-go="lb-refresh" ${LB.loading ? 'disabled' : ''}>⟳ Refresh</button></div>
+  lbPaint(`<div class="panel" data-lbpanel style="width:min(940px,calc(var(--sw) * 96))"><div class="panel-h"><h2>🏆 LEADERBOARDS</h2><span class="sp"></span><button class="btn sm" data-go="lb-refresh" ${LB.loading ? 'disabled' : ''}><span class="${LB.loading ? 'spin' : ''}">⟳</span> ${LB.loading ? 'Refreshing' : 'Refresh'}</button></div>
     <div class="ctabs" style="padding:8px 16px 0">${kinds.map(([k, l]) => `<button class="ctab ${k === LB.kind ? 'on' : ''}" data-lbkind="${k}">${l}</button>`).join('')}</div>
     <div class="lbmeta"><div>${src}</div>${last ? `<div>${last}</div>` : ''}<div class="muted">${LB.kind === 'runs' ? 'Every run, including ones still in progress. Scores post automatically each time an analyst clocks out of a shift. Best run per analyst.' : 'Finished careers only, showing each run\'s final score. Best career per analyst.'}</div></div>
     <div class="ctabs" style="padding:6px 16px 0">${[['all', 'ALL']].concat(DIFF_ORDER.map(k => [k, DIFFS[k].ico + ' ' + DIFFS[k].name.toUpperCase()])).map(([k, l]) => `<button class="ctab ${k === LB.tab ? 'on' : ''}" data-lbtab="${k}">${l}</button>`).join('')}</div>
     <div class="panel-b">
       <div class="card" style="margin-bottom:10px;border-color:rgba(62,240,255,.35)"><h4>YOUR STANDING · ${esc(profileName())}</h4>
-        <p>${meRank ? `Best ${LB.kind === 'runs' ? 'run' : 'career'}: rank <b class="cy">#${meRank.rank}</b> of ${total} · ${(meRank.score || 0).toLocaleString()} pts` : `No ${LB.kind === 'runs' ? 'runs' : 'finished careers'} on this board yet.`}</p>
+        <p>${!rows ? '<span class="muted">Loading…</span>' : meRank ? `Best ${LB.kind === 'runs' ? 'run' : 'career'}: rank <b class="cy">#${meRank.rank}</b> of ${total} · ${(meRank.score || 0).toLocaleString()} pts` : `No ${LB.kind === 'runs' ? 'runs' : 'finished careers'} on this board yet.`}</p>
         ${live && LB.kind === 'runs' ? `<p>Current run: <b>${live.score.toLocaleString()} pts</b> after ${live.shifts} shift${live.shifts === 1 ? '' : 's'} (${diffOf(live.diff).name}), which would place you ${liveTop ? `<b class="cy">#${liveRank}</b>` : 'outside the top 15 for now'}.</p>` : ''}
         <p class="muted" style="font-size:13px">${!online ? 'Scores are only on this device.' : !a ? 'You\'re playing offline: <button class="btn sm" data-go="acc-reg">Create an account</button> to post your scores.' : !a.token ? '<span class="am">Your login expired, so scores aren\'t posting.</span> <button class="btn sm" data-go="acc-login">Log in</button>' : pending ? `<span class="am">${pending} score update(s) waiting to post. They'll upload when you're back online.</span>` : '✓ Your scores post automatically after every shift.'}</p></div>
-      ${rows.length ? rows.map(rowHTML).join('') : '<div class="qempty"><b>NO SCORES YET</b>Clock out of a shift to get on the board.</div>'}
-      ${rows.some(x => x.bot) ? '<p class="muted" style="font-size:13px;margin-top:6px"><span class="tag carry">BOT</span> entries are sample scores to beat, not real players.</p>' : ''}
+      ${!rows ? '<div class="lbskel">' + '<div class="lbrow skel"></div>'.repeat(6) + '</div>' : rows.length ? rows.map(rowHTML).join('') : '<div class="qempty"><b>NO SCORES YET</b>Clock out of a shift to get on the board.</div>'}
+      ${rows && rows.some(x => x.bot) ? '<p class="muted" style="font-size:13px;margin-top:6px"><span class="tag carry">BOT</span> entries are sample scores to beat, not real players.</p>' : ''}
     </div>
     <div class="panel-f"><button class="btn ghost" data-go="${LB.back === 'pause' ? 'pause' : 'menu'}">← Back</button><span class="sp"></span><span class="muted mono" style="font-size:12px">${total > 15 ? 'Top 15 of ' : ''}${total} analyst${total === 1 ? '' : 's'}</span></div></div>`);
 }
@@ -3557,7 +3766,7 @@ function renderLeaderboard(force) {
    version.json (next to index.html on GitHub Pages) holds the latest version.
    The game checks it on every launch and from "Check for updates".
    ===================================================================== */
-const GAME_VERSION = '1.0.0';
+const GAME_VERSION = '1.1.0';
 const SITE_URL = 'https://shieldsyncofficial.github.io/signal-noise/';
 const UPD = { latest: null, checking: false, dismissed: false, last: 0 };
 function verCmp(a, b) { const pa = String(a).split('.').map(n => parseInt(n, 10) || 0), pb = String(b).split('.').map(n => parseInt(n, 10) || 0); for (let i = 0; i < 3; i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0) ? 1 : -1; } return 0; }
@@ -3620,6 +3829,110 @@ function showInstall() {
     '<p class="muted">It opens full-screen with its own icon. You need an internet connection to start it, your progress stays in your account, and it checks for updates every time it opens.</p>' });
 }
 
+
+/* =====================================================================
+   18h. FEEDBACK — bug reports & suggestions with screenshots / recordings
+   Stored in Supabase (table "feedback", private storage bucket "feedback").
+   ===================================================================== */
+const FB = { files: [], kind: 'bug', busy: false, back: 'settings', MAX_FILES: 3, MAX_BYTES: 25 * 1024 * 1024 };
+const fmtBytes = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+function showFeedback(back) {
+  FB.back = back || FB.back || 'settings';
+  if (!FB.keep) { FB.files.forEach(f => f.url && URL.revokeObjectURL(f.url)); FB.files = []; FB.kind = 'bug'; FB.draft = { title: '', body: '', contact: '', diag: true }; }
+  FB.keep = false;
+  const d = FB.draft, a = acctAny(), kinds = [['bug', '🐞 Bug'], ['idea', '💡 Suggestion'], ['other', '💬 Other']];
+  const ph = { bug: 'What happened? What did you expect? Steps to make it happen again help a lot.', idea: 'What would you like to see, and why would it make the game better?', other: 'Tell us anything.' };
+  showOverlay('feedback', `<div class="panel" style="width:min(620px,calc(var(--sw) * 94))"><div class="panel-h"><h2>💬 SEND FEEDBACK</h2></div><div class="panel-b">
+    ${Net.enabled() ? '' : '<p class="am">Feedback needs the online server, which isn\'t set up for this copy of the game.</p>'}
+    <p class="muted" style="margin-bottom:10px">Found a bug or have an idea? It goes straight to the game's owner. ${a ? `Sent as <b class="cy">${esc(a.username)}</b>.` : 'You can send it anonymously.'}</p>
+    <div class="ctabs" style="margin-bottom:10px">${kinds.map(([k, l]) => `<button class="ctab ${k === FB.kind ? 'on' : ''}" data-fbkind="${k}">${l}</button>`).join('')}</div>
+    <div class="field"><label>TITLE</label><input type="text" id="fbTitle" maxlength="120" placeholder="${FB.kind === 'bug' ? 'e.g. Queue stops updating after a major incident' : 'A short summary'}" value="${esc(d.title)}"></div>
+    <div class="field"><label>DETAILS</label><textarea id="fbBody" rows="6" maxlength="5000" placeholder="${ph[FB.kind]}">${esc(d.body)}</textarea></div>
+    <div class="field"><label>SCREENSHOTS OR RECORDINGS <span class="muted">(optional · up to ${FB.MAX_FILES} files, 25 MB total)</span></label>
+      <div class="fbdrop" id="fbDrop" tabindex="0" role="button">📎 <b>Add images or videos</b><span class="muted">tap to choose, or drag them here</span></div>
+      <input type="file" id="fbFile" accept="image/*,video/*" multiple class="hidden">
+      <div id="fbList" class="fblist"></div></div>
+    <div class="field"><label>CONTACT <span class="muted">(optional, only the owner sees it)</span></label><input type="text" id="fbContact" maxlength="120" placeholder="Email or Discord, if you'd like a reply" value="${esc(d.contact)}"></div>
+    <label class="toggle"><input type="checkbox" id="fbDiag" ${d.diag ? 'checked' : ''}><span>Include game details<small>Version, device and screen size, and where you are in the game. No personal data.</small></span></label>
+    <div id="fbStatus" class="fbstatus hidden"></div>
+  </div><div class="panel-f"><button class="btn ghost" data-go="fb-back">Cancel</button><span class="sp"></span><button class="btn primary" id="fbSend" data-go="fb-send" ${Net.enabled() ? '' : 'disabled'}>Send ▶</button></div></div>`);
+  const keep = () => { d.title = $('#fbTitle').value; d.body = $('#fbBody').value; d.contact = $('#fbContact').value; d.diag = $('#fbDiag').checked; };
+  ['#fbTitle', '#fbBody', '#fbContact', '#fbDiag'].forEach(id => $(id).addEventListener('input', keep));
+  $('#fbDiag').addEventListener('change', keep);
+  const drop = $('#fbDrop');
+  drop.addEventListener('click', () => $('#fbFile').click());
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#fbFile').click(); } });
+  $('#fbFile').addEventListener('change', e => { fbAdd(e.target.files); e.target.value = ''; });
+  fbRenderFiles();
+}
+function fbAdd(list) {
+  let msg = '';
+  for (const f of Array.from(list || [])) {
+    if (!/^(image|video)\//.test(f.type)) { msg = `"${f.name}" isn't an image or video.`; continue; }
+    if (FB.files.length >= FB.MAX_FILES) { msg = `Up to ${FB.MAX_FILES} attachments.`; break; }
+    const total = FB.files.reduce((t, x) => t + x.file.size, 0) + f.size;
+    if (total > FB.MAX_BYTES) { msg = `"${f.name}" would go over the 25 MB limit${f.type.startsWith('video') ? '. Try a shorter recording' : ''}.`; continue; }
+    FB.files.push({ file: f, url: URL.createObjectURL(f) });
+  }
+  if (msg) toast(msg, 'warn');
+  fbRenderFiles();
+}
+function fbRenderFiles() {
+  const el = $('#fbList'); if (!el) return;
+  const total = FB.files.reduce((t, x) => t + x.file.size, 0);
+  el.innerHTML = FB.files.map((x, i) => `<div class="fbfile">${x.file.type.startsWith('image') ? `<img src="${x.url}" alt="">` : `<video src="${x.url}" muted preload="metadata"></video>`}<div><b>${esc(x.file.name)}</b><span class="muted mono">${fmtBytes(x.file.size)}</span><div class="bar hidden" data-fbbar="${i}"><i style="width:0%;background:var(--cyan)"></i></div></div><button class="btn sm ghost" data-fbrm="${i}" title="Remove">✕</button></div>`).join('')
+    + (FB.files.length ? `<p class="muted mono" style="font-size:12px">${FB.files.length}/${FB.MAX_FILES} files · ${fmtBytes(total)} of 25 MB</p>` : '');
+  const drop = $('#fbDrop'); if (drop) drop.classList.toggle('hidden', FB.files.length >= FB.MAX_FILES);
+}
+function fbDevice() {
+  const r = S.run, s = r && r.shift;
+  return { ua: navigator.userAgent.slice(0, 300), screen: `${innerWidth}x${innerHeight}@${(window.devicePixelRatio || 1).toFixed(2)}`, mobile: !!S.mobile, app: isStandalone(), lang: navigator.language, tz: tzName(),
+    text: S.meta.settings.text, sound: !!S.meta.settings.sound, online: !!acct(), where: S.overlay || (r ? r.phase : 'menu'),
+    run: r ? { seed: r.seed, diff: r.diff, shift: r.shiftCount + 1, tier: r.tier, t: s ? Math.round(s.t) : null, phase: s ? s.phase : null } : null };
+}
+function fbUpload(path, file, i) {
+  return new Promise((res, rej) => {
+    const send = bearer => {
+      const x = new XMLHttpRequest(); x.open('POST', ONLINE.url.replace(/\/+$/, '') + '/storage/v1/object/feedback/' + path.split('/').map(encodeURIComponent).join('/'));
+      x.setRequestHeader('apikey', ONLINE.key); if (bearer) x.setRequestHeader('Authorization', 'Bearer ' + ONLINE.key);
+      x.setRequestHeader('Content-Type', file.type || 'application/octet-stream'); x.setRequestHeader('x-upsert', 'false'); x.setRequestHeader('cache-control', '3600');
+      const bar = $(`[data-fbbar="${i}"]`); if (bar) bar.classList.remove('hidden');
+      x.upload.onprogress = e => { if (e.lengthComputable && bar) bar.firstElementChild.style.width = Math.round(e.loaded / e.total * 100) + '%'; };
+      x.onload = () => { if (x.status >= 200 && x.status < 300) { if (bar) bar.firstElementChild.style.width = '100%'; res(path); } else if (!bearer && (x.status === 400 || x.status === 401 || x.status === 403)) send(true); else rej(new Error('HTTP ' + x.status)); };
+      x.onerror = () => rej(new Error('network')); x.timeout = 300000; x.ontimeout = () => rej(new Error('timeout'));
+      x.send(file);
+    };
+    send(/^eyJ/.test(ONLINE.key));
+  });
+}
+async function fbSend() {
+  if (FB.busy) return;
+  const d = FB.draft, title = d.title.trim(), body = d.body.trim(), st = $('#fbStatus');
+  const say = (h, cls) => { st.className = 'fbstatus ' + (cls || ''); st.innerHTML = h; };
+  if (title.length < 3) { toast('Please add a short title', 'warn'); $('#fbTitle').focus(); return; }
+  if (body.length < 10) { toast('Please add a few more details', 'warn'); $('#fbBody').focus(); return; }
+  FB.busy = true; $('#fbSend').disabled = true; say('⟳ Sending…');
+  try {
+    const a = acct();
+    const res = await Net.rpc('sn_feedback_submit', { p_report: { kind: FB.kind, title, body, contact: d.contact.trim(), version: GAME_VERSION, device: d.diag ? fbDevice() : { version: GAME_VERSION },
+      files: FB.files.map(x => ({ name: x.file.name, type: x.file.type, size: x.file.size })) }, p_token: a ? a.token : null }, 15000);
+    const done = [], failed = [];
+    for (let i = 0; i < FB.files.length; i++) {
+      say(`⟳ Uploading attachment ${i + 1} of ${FB.files.length}…`);
+      try { done.push(await fbUpload(res.paths[i], FB.files[i].file, i)); } catch (e) { failed.push(FB.files[i].file.name); }
+    }
+    if (done.length) { try { await Net.rpc('sn_feedback_done', { p_id: res.id, p_paths: done }); } catch (e) { /* the report itself is saved */ } }
+    FB.busy = false;
+    modal({ title: 'THANK YOU!', ico: '💌', body: `<p>Your ${FB.kind === 'bug' ? 'bug report' : FB.kind === 'idea' ? 'suggestion' : 'message'} was sent to the game's owner${done.length ? ` with ${done.length} attachment${done.length === 1 ? '' : 's'}` : ''}.</p>${failed.length ? `<p class="am">These couldn't be uploaded: ${failed.map(esc).join(', ')}. Your report was still saved.</p>` : ''}<p class="muted">Reference: <span class="mono">${esc(String(res.id).slice(0, 8))}</span></p>`,
+      buttons: [{ label: 'Done', cls: 'primary', fn() { FB.files.forEach(f => f.url && URL.revokeObjectURL(f.url)); FB.files = []; fbBack(); } }] });
+    Sound.good();
+  } catch (e) {
+    FB.busy = false; $('#fbSend').disabled = false;
+    say('⚠ ' + esc(e.server ? e.message.replace(/^HTTP \d+$/, NET_MSG.server) : NET_MSG.offline) + ' Your text is kept, so you can try again.', 'am');
+  }
+}
+function fbBack() { const b = FB.back; if (b === 'settings') showSettings(FB.setBack || 'menu'); else if (b === 'pause') showPauseMenu(); else showStart(); }
+
 /* =====================================================================
    19. INPUT — mouse delegation & keyboard shortcuts
    ===================================================================== */
@@ -3630,8 +3943,8 @@ function moveSel(dir) {
   selectAlert(ids[i]);
   const row = $(`#queue .qrow[data-id="${ids[i]}"]`); if (row) row.scrollIntoView({ block: 'nearest' });
 }
-function togglePause() { if (!isLive()) return; S.paused = !S.paused; toast(S.paused ? 'Paused' : 'Resumed'); renderHUD(); }
-function toggleSound() { S.meta.settings.sound = !S.meta.settings.sound; saveMeta(); if (S.meta.settings.sound) Sound.good(); renderHUD(); renderDesk(); }
+function togglePause() { if (!isLive()) return; S.paused = !S.paused; toast(S.paused ? 'Paused' : 'Resumed'); Sound.setLevels(); renderHUD(); }
+function toggleSound() { S.meta.settings.sound = !S.meta.settings.sound; saveMeta(); if (S.meta.settings.sound) { Sound.unlock(); Sound.sync(); Sound.good(); } else Sound.sync(); renderHUD(); renderDesk(); }
 function currentAlert() { const a = S.ui.sel && getAlert(S.ui.sel); return a && a.status === 'open' ? a : null; }
 
 function bindInput() {
@@ -3658,13 +3971,15 @@ function bindInput() {
   });
   $('#overlay').addEventListener('click', e => {
     if (S.overlay === 'walk' && walkClick(e)) return;
-    const lt = e.target.closest('[data-lbtab]'); if (lt) { LB.tab = lt.dataset.lbtab; renderLeaderboard(); lbFetch(false); return; }
-    const lk = e.target.closest('[data-lbkind]'); if (lk) { LB.kind = lk.dataset.lbkind; renderLeaderboard(); lbFetch(false); return; }
+    const lt = e.target.closest('[data-lbtab]'); if (lt) { LB.tab = lt.dataset.lbtab; lbFetch(false); return; }
+    const lk = e.target.closest('[data-lbkind]'); if (lk) { LB.kind = lk.dataset.lbkind; lbFetch(false); return; }
     const g = e.target.closest('[data-go]'), buy = e.target.closest('[data-buy]'), ah = e.target.closest('[data-act-home]'), ce = e.target.closest('[data-cert]');
     if (buy) { const u = UNLOCKS.find(x => x.id === buy.dataset.buy); if (u && S.meta.lp >= u.cost) { S.meta.lp -= u.cost; S.meta.unlocks[u.id] = true; saveMeta(); if (UNLOCKS.every(x => S.meta.unlocks[x.id])) grantAch('allunlocks'); Sound.good(); toast('Unlocked: ' + u.name, 'good'); showUnlocks(); } return; }
     if (ah) { doHome(ah.dataset.actHome); return; }
     if (ce) { doCert(ce.dataset.cert); return; }
     const dc = e.target.closest('[data-diff]'); if (dc) { $$('.diffcard').forEach(x => x.classList.toggle('on', x === dc)); Sound.click(); return; }
+    const fk = e.target.closest('[data-fbkind]'); if (fk) { FB.kind = fk.dataset.fbkind; FB.keep = true; showFeedback(FB.back); return; }
+    const fr = e.target.closest('[data-fbrm]'); if (fr) { const x = FB.files.splice(+fr.dataset.fbrm, 1)[0]; if (x && x.url) URL.revokeObjectURL(x.url); fbRenderFiles(); return; }
     const pt = e.target.closest('[data-ptab]'); if (pt) { showProfile(pt.dataset.ptab, S.profileBack); return; }
     const hi = e.target.closest('[data-hist]'); if (hi) { showHistoryDetail(+hi.dataset.hist); return; }
     if (!g) return;
@@ -3686,6 +4001,9 @@ function bindInput() {
       case 'fullscreen': toggleFullscreen(); break;
       case 'check-upd': checkUpdates(true); break;
       case 'install': showInstall(); break;
+      case 'feedback': if (S.overlay === 'settings') { FB.back = 'settings'; FB.setBack = S.setBack || 'menu'; showFeedback('settings'); } else showFeedback('menu'); break;
+      case 'fb-send': fbSend(); break;
+      case 'fb-back': if (!FB.busy) fbBack(); break;
       case 'load-acc': showLoadScreen('account'); break;
       case 'account': showAccount(S.acctMode || 'register'); break;
       case 'acc-submit': submitAccount(); break;
@@ -3705,6 +4023,8 @@ function bindInput() {
       case 'walk-close': S.walk = null; showStart(); break;
       case 'profile': showProfile('stats', 'menu'); break;
       case 'profile2': showProfile('stats', 'pause'); break;
+      case 'profile-home': showProfile('shifts', 'home-back'); break;
+      case 'home-back': showHome(); break;
       case 'profile-ach': showProfile('ach', 'menu'); break;
       case 'profile-hist': showProfile('hist', 'menu'); break;
       case 'pname': { const v = ($('#pName').value || '').trim().slice(0, 16) || 'Analyst'; S.meta.profile.name = v; saveMeta(); renderDesk(); toast('Callsign saved: ' + v, 'good'); showProfile('stats', S.profileBack); break; }

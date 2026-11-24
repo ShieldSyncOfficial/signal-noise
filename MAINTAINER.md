@@ -46,9 +46,22 @@ Until you complete the setup below, the game works fully **offline**: usernames 
 
 Each release that changes the backend comes with a `supabase-update-vX.Y.Z.sql` file. Run it once in **SQL Editor** (paste all of it → **Run**). Every update script is safe to run more than once.
 
+- **v1.1.0** (`supabase-update-v1.1.0.sql`): adds player feedback (a `feedback` table, a private `feedback` storage bucket for screenshots/recordings, and the functions the game calls).
 - **v1.0.0** (`supabase-update-v1.0.0.sql`): trims the sample bots to 5, returns the top 15 plus the player's own row, and accepts the original finish date of older careers being backfilled. Players' scores are untouched.
 
 (`supabase-setup.sql` is always the full, current version, for brand-new projects.)
+
+---
+
+## Reviewing feedback & bug reports
+
+Players send these from **Settings → Send feedback** (anonymous or logged in).
+
+- **Read them:** Supabase → **Table Editor** → `feedback_inbox` (newest first, with attachment counts, device and version). The underlying table is `feedback`.
+- **Attachments:** **Storage → feedback**. Each report has a folder named after its `id`; click a file to preview or download it.
+- **Track progress:** in the `feedback` table, set `status` to `reviewing`, `planned`, `done` or `wontfix`, and use `owner_note` for your own notes. Players don't see these.
+- **Limits:** up to 3 files (images or videos) and 25 MB per report, 5 reports per person per day, and 300 per day in total. The free plan includes 1 GB of storage. Delete old attachments from Storage when you're done with them (or run `delete from feedback where status in ('done','wontfix');` and delete the matching folders).
+- **Game details** (`device` column) show the version, browser, screen size, whether it's installed, and the seed/shift the player was on, which is useful for reproducing bugs. No IP addresses are stored, only a one-way hash used for the daily limit.
 
 ---
 
