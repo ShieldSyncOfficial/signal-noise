@@ -1427,6 +1427,7 @@ function mods() {
 function addCP(v) { const r = S.run; if (!r || r.ended) return; r.cp += Math.max(0, Math.round(v * mods().cp)); }
 /** Backfill fields added in later versions so old saves/imports keep working. */
 function normalizeRun(r) {
+  if (r.shiftCount > 0 && r.tutorial >= 0) r.tutorial = -1; // runs saved with an unfinished tutorial (blocked shift cards)
   r.diff = DIFFS[r.diff] ? r.diff : 'standard'; r.runId = r.runId || randomRunId(); r.shiftLog = r.shiftLog || []; r.cards = r.cards || []; r.cardLog = r.cardLog || []; r.stats = Object.assign({ decisions: 0, correct: 0, prevented: 0, missed: 0, sla: 0, nights: 0, bossWon: 0, bosses: 0, overEsc: 0, alerts: 0, grades: [] }, r.stats || {});
   r.training = r.training || {}; r.certs = r.certs || {}; r.achRun = r.achRun || {}; r.chains = r.chains || []; r.surprises = r.surprises || []; r.history = r.history || [];
   const s = r.shift;
@@ -1513,6 +1514,7 @@ function startShift() {
   S.ui.sel = null; S.ui.ctab = 'chat'; S.ui.view = null; S.ui.mpane = 'mon1'; applyPane();
 
   // --- Regular alerts
+  if (idx > 0 && r.tutorial >= 0) { r.tutorial = -1; S.meta.tutorialDone = true; saveMeta(); } // Ravi's guided steps only cover the first shift
   const tut = r.tutorial === 0 && idx === 0;
   const n = tut ? 7 : Math.min(32, Math.round(((night ? 8 : 11) + idx * .7 + r.tier * 1.5 + R.int(-1, 2)) * mods().alerts));
   const times = [];
@@ -1624,7 +1626,7 @@ function stepMinute(st) {
   for (let i = s.feedback.length - 1; i >= 0; i--) if (s.feedback[i].at <= t) { const f = s.feedback.splice(i, 1)[0]; applyFeedback(f); if (r.ended) return; }
   if (S.modal === 0 && s.events.length && s.events[0].t <= t && !(s.bridge && s.bridge.active)) fireEvent(s.events.shift());
   if (s.bossAt >= 0 && t >= s.bossAt && !s.bridge && S.modal === 0) startBridge();
-  if (s.cps && s.cpDone < s.cps.length && t >= s.cps[s.cpDone] && S.modal === 0 && !(s.bridge && s.bridge.active) && r.tutorial < 0) offerCards();
+  if (s.cps && s.cpDone < s.cps.length && t >= s.cps[s.cpDone] && S.modal === 0 && !(s.bridge && s.bridge.active) && (r.tutorial < 0 || t >= s.cps[s.cpDone] + 60)) offerCards();
   if (s.bridge && s.bridge.active) { s.bridge.left -= st; if (s.bridge.left <= 0) { endBridge(); if (r.ended) return; } }
   if (s.outage && s.outage.active && t >= s.outage.until) { s.outage.active = false; chat('sys', 'SIEM cluster restored. Normal enrichment resumed.'); openAlerts().forEach(a => a.raw = false); dirty(); }
   resources(st);
@@ -3766,7 +3768,7 @@ function renderLeaderboard(force) {
    version.json (next to index.html on GitHub Pages) holds the latest version.
    The game checks it on every launch and from "Check for updates".
    ===================================================================== */
-const GAME_VERSION = '1.1.0';
+const GAME_VERSION = '1.1.1';
 const SITE_URL = 'https://shieldsyncofficial.github.io/signal-noise/';
 const UPD = { latest: null, checking: false, dismissed: false, last: 0 };
 function verCmp(a, b) { const pa = String(a).split('.').map(n => parseInt(n, 10) || 0), pb = String(b).split('.').map(n => parseInt(n, 10) || 0); for (let i = 0; i < 3; i++) { if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0) ? 1 : -1; } return 0; }
